@@ -1,7 +1,0 @@
-python train.py --resume "/media/john/EEA Drive 1/remote_sensing/checkpoint.pth"
-
-python train.py --bands SAR --lr 0.001
-
-python train.py --bands SAR --resume "/media/john/EEA Drive 1/remote_sensing/checkpoint.pth"
-
-python train.py --bands SAR_VV --lr 0.01
