@@ -13,10 +13,6 @@ Because the number of images is smaller in the person keypoint subset of COCO,
 the number of epochs should be adapted so that we have the same number of iterations.
 """
 
-
-# TODO
-# This needs to be brought up-to-date with all of the finetune.py functionality!
-
 import datetime
 import os
 import time
@@ -28,19 +24,13 @@ import torchvision.models.detection
 
 from engine import train_one_epoch
 import augment
-import sen12ms
 import vicreg
 import utils
 
 from torchvision.models import resnet18
 import torchvision.transforms as T
 
-def get_sen12ms(root, image_set, transforms, bands = None):
-
-    # Not used now but here in-case we have a train-test split in the future
-    PATHS = {
-        "train": ("")
-    }
+def get_voc(root, image_set, transforms):
 
     t = []
 
@@ -48,40 +38,33 @@ def get_sen12ms(root, image_set, transforms, bands = None):
         t.append(transforms)
     transforms = T.Compose(t)
 
-    img_folder = PATHS[image_set]
-    img_folder = os.path.join(root, img_folder)
-
-    dataset = sen12ms.SEN12MSDataset(img_folder, transform=transforms, bands = bands)
-
-    if image_set == "train":
-    	# TODO
-        pass
+    dataset = torchvision.datasets.VOCDetection(root = root, transform=transforms)
 
     return dataset
 
-def get_dataset(name, image_set: str, transform, data_path, bands = None):
+def get_dataset(name, image_set: str, transform, data_path):
     paths = {
-        "sen12ms": (data_path, get_sen12ms),
+        "voc": (data_path, get_voc),
     }
     p, ds_fn = paths[name]
 
-    ds = ds_fn(p, image_set=image_set, transforms=transform, bands = bands)
+    ds = ds_fn(p, image_set=image_set, transforms=transform)
     return ds
 
 
-def get_transform(train, data_preprocess, bands):
-    return augment.sen12ms_preprocess(data_preprocess, bands) if train else None
+def get_transform(train, data_preprocess):
+    return augment.VOC_preprocess(data_preprocess) if train else None
 
 
 def get_args_parser(add_help=True):
     import argparse
-    parser = argparse.ArgumentParser(description='SSL training for representations', add_help=add_help)
+    parser = argparse.ArgumentParser(description='SSL training for representation an analysis', add_help=add_help)
 
-    parser.add_argument('--data-path', default='/media/john/EEA Drive 1/datasets/m1474000/', help='dataset')
-    parser.add_argument('--dataset', default='sen12ms', help='dataset')
+    parser.add_argument('--data-path', default='/media/john/EEA Drive 1/datasets/VOC2012/', help='dataset')
+    parser.add_argument('--dataset', default='voc', help='dataset')
     parser.add_argument('--model', default='resnet18', help='model')
     parser.add_argument('--device', default='cuda', help='device')
-    parser.add_argument('-b', '--batch-size', default=128, type=int,
+    parser.add_argument('-b', '--batch-size', default=1, type=int,
                         help='images per gpu, the total batch size is $NGPU x batch_size')
     parser.add_argument('--epochs', default=30, type=int, metavar='N',
                         help='number of total epochs to run')
@@ -103,13 +86,12 @@ def get_args_parser(add_help=True):
     parser.add_argument('--lr-gamma', default=0.1, type=float,
                         help='decrease lr by a factor of lr-gamma (multisteplr scheduler only)')
     parser.add_argument('--print-freq', default=20, type=int, help='print frequency')
-    parser.add_argument('--output-dir', default='/media/john/EEA Drive 1/remote_sensing/', help='path where to save')
+    parser.add_argument('--output-dir', default='/media/john/EEA Drive 1/ssl_representations/', help='path where to save')
     parser.add_argument('--resume', default='', help='resume from checkpoint')
     parser.add_argument('--start_epoch', default=0, type=int, help='start epoch')
     parser.add_argument('--framework', default="vicreg", help='SSL framework to utilize (default: vicreg)')
     parser.add_argument('--data-preprocess', default="normalize", help='data preprocess policy (default: normalize)')
     parser.add_argument('--data-augment', default="vicreg", help='data augment policy (default: vicreg)')
-    parser.add_argument('--bands', default="RGB", help='bands to retrieve from SEN12MS (default: RGB)')
     parser.add_argument(
         "--sync-bn",
         dest="sync_bn",
@@ -145,22 +127,8 @@ def main(args):
 
     print("Data augmentation type:", args.data_preprocess)
 
-    print("Bands to retrieve:", args.bands)
-
-    if args.bands == "RGB":
-        bands = sen12ms.S2Bands.RGB
-    elif args.bands == "SAR":
-        bands = sen12ms.S1Bands.ALL
-    elif args.bands == "SAR_VV":
-        bands = sen12ms.S1Bands.VV
-    elif args.bands == "SAR_VH":
-        bands = sen12ms.S1Bands.VH
-    else:
-        print("No bands given, defaulting to RGB")
-        bands = None
-
-    dataset = get_dataset(args.dataset, "train", get_transform(True, args.data_preprocess, bands = bands),
-                                       args.data_path, bands = bands)
+    dataset = get_dataset(args.dataset, "train", get_transform(True, args.data_preprocess),
+                                       args.data_path)
 
     print("Creating data loaders")
     if args.distributed:
