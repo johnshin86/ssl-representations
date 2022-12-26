@@ -75,7 +75,7 @@ def get_transform(train, data_preprocess, bands):
 
 def get_args_parser(add_help=True):
     import argparse
-    parser = argparse.ArgumentParser(description='SSL training for SEN12MS', add_help=add_help)
+    parser = argparse.ArgumentParser(description='SSL training for representations', add_help=add_help)
 
     parser.add_argument('--data-path', default='/media/john/EEA Drive 1/datasets/m1474000/', help='dataset')
     parser.add_argument('--dataset', default='sen12ms', help='dataset')
