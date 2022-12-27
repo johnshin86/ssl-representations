@@ -54,6 +54,7 @@ class VOC_augment:
                     self.RandomGrayscale,
                     self.RandomGaussian,
                     T.RandomSolarize(p = 0.1),
+                    T.Normalize(mean, std),
                     ])
 
             else:
