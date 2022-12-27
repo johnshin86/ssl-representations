@@ -1,45 +1,36 @@
-from torch import nn, optim
 import torch
-import torchvision
-import torchvision.transforms as transforms
+from torch import Tensor
+from torch.nn.modules.loss import _Loss 
 
-#TODO: make more consistent with how VICReg is written/works.
-# Add docstrings and generally clean up.
 
-class BarlowTwins(nn.Module):
-    def __init__(self, args):
+class BarlowTwinsLoss(_Loss):
+    r"""The Barlow Twins loss. This is a subclass of the internal loss class used
+    for the pytorch non-weighted losses, _Loss. It is intialized in the same way that the internal
+    non-weighted losses are, to be consistent with their internal losses. 
+
+    The forward method of the class computes the cross-correlation matrix of the two representations over the batch
+    """
+    def __init__(self, expander_output: int, off_diag_coef: float):
         super().__init__()
-        self.args = args
-        self.backbone = torchvision.models.resnet18(zero_init_residual=True)
-        self.backbone.fc = nn.Identity()
+        self.bn = torch.nn.BatchNorm1d(expander_output, affine = False)
+        self.off_diag_coef = off_diag_coef
 
-        # projector
-        sizes = [512] + list(map(int, args['projector'].split('-')))
-        layers = []
-        for i in range(len(sizes) - 2):
-            layers.append(nn.Linear(sizes[i], sizes[i + 1], bias=False))
-            layers.append(nn.BatchNorm1d(sizes[i + 1]))
-            layers.append(nn.ReLU(inplace=True))
-        layers.append(nn.Linear(sizes[-2], sizes[-1], bias=False))
-        self.projector = nn.Sequential(*layers)
 
-        # normalization layer for the representations z1 and z2
-        self.bn = nn.BatchNorm1d(sizes[-1], affine=False)
+    def forward(self, z_a: Tensor, z_b: Tensor) -> Tensor:
 
-    def forward(self, y1, y2):
-        z1 = self.projector(self.backbone(y1))
-        z2 = self.projector(self.backbone(y2))
-
-        # empirical cross-correlation matrix
-        c = self.bn(z1).T @ self.bn(z2)
-
-        # sum the cross-correlation matrix between all gpus
+        #create cross-correlation matrix over batch
+        c = self.bn(z_a).T @ self.bn(z_b)
+        
+        # normalize by batch_size
         c.div_(self.args['batch_size'])
-        #torch.distributed.all_reduce(c)
+
+        #may need to comment out
+        torch.distributed.all_reduce(c)
 
         on_diag = torch.diagonal(c).add_(-1).pow_(2).sum()
         off_diag = off_diagonal(c).pow_(2).sum()
-        loss = on_diag + self.args['lambd'] * off_diag
+        loss = on_diag + self.off_diag_coef * off_diag
+
         return loss
 
 def off_diagonal(x):
@@ -47,3 +38,4 @@ def off_diagonal(x):
     n, m = x.shape
     assert n == m
     return x.flatten()[:-1].view(n - 1, n + 1)[:, 1:].flatten()
+
