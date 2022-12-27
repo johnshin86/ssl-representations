@@ -11,11 +11,18 @@ class VOC_preprocess:
         mean = torch.tensor([0.4570, 0.4382, 0.4062])
         std = torch.tensor([0.2345, 0.2305, 0.2353])
 
-        self.transforms = T.Compose([
-                T.ToTensor(),
-                T.Normalize(mean, std),
-                T.Resize((224, 224))
-        ])
+        if data_preprocess == "normalize":
+            self.transforms = T.Compose([
+                    T.ToTensor(),
+                    T.Normalize(mean, std),
+                    T.Resize((224, 224))
+            ])
+        else:
+            self.transforms = T.Compose([
+                    T.ToTensor(),
+                    T.Resize((224, 224))
+            ])
+
 
     def __call__(self, img):
         return self.transforms(img)
@@ -29,7 +36,7 @@ class VOC_augment:
         self.RandomGrayscale = T.RandomApply([T.Grayscale(num_output_channels = 3)], p = 0.2)
         self.RandomGaussian = T.RandomApply([T.GaussianBlur(kernel_size = 3)], p = 0.5)
 
-        if aug_policy == 'vicreg':
+        if aug_policy == 'standard':
 
             if aug_strength == 'weak':
 
