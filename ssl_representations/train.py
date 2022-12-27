@@ -163,7 +163,7 @@ def main(args):
                      )
 
     else:
-        raise ValueError(f"Model type {args.model} not implemented.")
+        raise ValueError(f"Model type "{args.model}" not implemented.")
 
     print(model)
 
@@ -229,7 +229,7 @@ def main(args):
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
-        train_one_epoch(model, optimizer, data_loader, device, epoch, args.print_freq, loss_dict, loss_coeff, augment_policy)
+        train_one_epoch(model, optimizer, data_loader, device, epoch, args.print_freq, loss_dict, loss_coeff, augment_policy, args.framework)
         lr_scheduler.step()
         if args.output_dir:
             checkpoint = {
