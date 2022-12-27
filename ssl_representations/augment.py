@@ -72,16 +72,23 @@ class VOC_augment:
                     self.RandomGaussian,
                     ])
 
-            elif self.aug_strength == 'medium':
+            elif self.aug_strength == 'noisy':
 
                 self.transforms = T.Compose([
                     T.RandomHorizontalFlip(p = 0.5),
                     self.RandomJitter,
                     self.RandomGrayscale,
+                    T.RandomSolarize(p = 0.1),
                     self.RandomGaussian,
                     ])
 
             elif self.aug_strength == 'strong':
+                self.transforms = T.Compose([
+                    T.RandomResizedCrop(size = (224,224), scale = (0.05, 1.0)),
+                    T.Normalize(mean, std),
+                    ])
+
+            elif self.aug_strength == 'noisy_strong':
                 self.transforms = T.Compose([
                     T.RandomResizedCrop(size = (224,224), scale = (0.05, 1.0))
                     T.RandomHorizontalFlip(p = 0.5),
