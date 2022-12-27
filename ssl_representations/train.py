@@ -83,6 +83,7 @@ def get_args_parser(add_help=True):
     parser.add_argument('--lr-gamma', default=0.1, type=float,
                         help='decrease lr by a factor of lr-gamma (multisteplr scheduler only)')
     parser.add_argument('--print-freq', default=20, type=int, help='print frequency')
+    parser.add_argument('--save-freq', default=100, type=int, help='save frequency')
     parser.add_argument('--output-dir', default='/media/john/EEA Drive 1/ssl_representations/', help='path where to save')
     parser.add_argument('--resume', default='', help='resume from checkpoint')
     parser.add_argument('--start_epoch', default=0, type=int, help='start epoch')
@@ -90,6 +91,8 @@ def get_args_parser(add_help=True):
     parser.add_argument('--data-preprocess', default="normalize", help='data preprocess policy (default: normalize)')
     parser.add_argument('--aug-policy', default="standard", help='data augment policy (default: vicreg)')
     parser.add_argument('--aug-strength', default="weak", help='Strength of augmentations (default: weak)')
+    parser.add_argument('--expander-input', default=512, type=int, help='Input dimension of expander function')
+    parser.add_argument('--expander-output', default=2048, type=int, help='Output dimension of expander function')
     parser.add_argument(
         "--sync-bn",
         dest="sync_bn",
@@ -129,6 +132,9 @@ def main(args):
     # Data loading code
     print("Loading data")
     print("Data preprocess type:", args.data_preprocess)
+    if args.aug_strength == 'strong':
+        print("Augmentation strength is set to strong, moving normalization to policy, rather than preprocessing, for stability")
+        args.data_preprocess = ""
     dataset = get_dataset(args.dataset, "train", get_transform(True, args.data_preprocess),
                                        args.data_path)
 
@@ -145,22 +151,20 @@ def main(args):
         dataset, batch_sampler=train_batch_sampler, num_workers=args.workers,
         collate_fn=utils.collate_fn)
 
+    print("Creating Expander")
+    expander = torch.nn.Sequential(torch.nn.Linear(args.expander_input, args.expander_output),
+                    torch.nn.BatchNorm1d(num_features = args.expander_output),
+                    torch.nn.ReLU(),
+                    torch.nn.Linear(args.expander_output, args.expander_output),
+                    torch.nn.BatchNorm1d(num_features = args.expander_output),
+                    torch.nn.ReLU(),
+                    torch.nn.Linear(args.expander_output, args.expander_output),                     
+                     )
+
     print("Creating model")
-    # need to chop off linear classifier of existing library models 
-    # and add an expander function
-    # TODO: handle model import and expander better. 
     if args.model == "resnet18":
         model = resnet18(pretrained = False)
-
-        # rewrite fc layer as expander
-        model.fc = torch.nn.Sequential(torch.nn.Linear(512, 2048),
-                    torch.nn.BatchNorm1d(num_features = 2048),
-                    torch.nn.ReLU(),
-                    torch.nn.Linear(2048, 2048),
-                    torch.nn.BatchNorm1d(num_features = 2048),
-                    torch.nn.ReLU(),
-                    torch.nn.Linear(2048, 2048),                     
-                     )
+        model.fc = expander
 
     else:
         raise ValueError(f"Model type "{args.model}" not implemented.")
@@ -231,21 +235,22 @@ def main(args):
             train_sampler.set_epoch(epoch)
         train_one_epoch(model, optimizer, data_loader, device, epoch, args.print_freq, loss_dict, loss_coeff, augment_policy, args.framework)
         lr_scheduler.step()
-        if args.output_dir:
-            checkpoint = {
-                'model': model_without_ddp.state_dict(),
-                'optimizer': optimizer.state_dict(),
-                'lr_scheduler': lr_scheduler.state_dict(),
-                'args': args,
-                'epoch': epoch,
-                'loss_coeff': loss_coeff
-            }
-            utils.save_on_master(
-                checkpoint,
-                os.path.join(args.output_dir, 'model_{}.pth'.format(epoch)))
-            utils.save_on_master(
-                checkpoint,
-                os.path.join(args.output_dir, 'checkpoint.pth'))
+        if epoch % args.save_freq == 0:
+            if args.output_dir:
+                checkpoint = {
+                    'model': model_without_ddp.state_dict(),
+                    'optimizer': optimizer.state_dict(),
+                    'lr_scheduler': lr_scheduler.state_dict(),
+                    'args': args,
+                    'epoch': epoch,
+                    'loss_coeff': loss_coeff
+                }
+                utils.save_on_master(
+                    checkpoint,
+                    os.path.join(args.output_dir, 'model_{}.pth'.format(epoch)))
+                utils.save_on_master(
+                    checkpoint,
+                    os.path.join(args.output_dir, 'checkpoint.pth'))
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
