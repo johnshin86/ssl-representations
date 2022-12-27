@@ -21,7 +21,6 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq, lo
 
     for images, bounds in metric_logger.log_every(data_loader, print_freq, header):
         
-        # TODO: handling of non-vicreg
         images = torch.stack(images)
         images = images.to(device)
 
