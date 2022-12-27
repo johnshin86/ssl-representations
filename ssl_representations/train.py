@@ -58,7 +58,7 @@ def get_transform(train, data_preprocess):
 
 def get_args_parser(add_help=True):
     import argparse
-    parser = argparse.ArgumentParser(description='SSL training for representation an analysis', add_help=add_help)
+    parser = argparse.ArgumentParser(description='SSL training for representation analysis', add_help=add_help)
 
     parser.add_argument('--data-path', default='/media/john/EEA Drive 1/datasets/VOC2012/', help='dataset')
     parser.add_argument('--dataset', default='voc', help='dataset')
@@ -133,7 +133,7 @@ def main(args):
     print("Loading data")
     print("Data preprocess type:", args.data_preprocess)
     if args.aug_strength == 'strong':
-        print("Augmentation strength is set to strong, moving normalization to policy, rather than preprocessing, for stability")
+        print("Augmentation strength is set to strong, moving normalization to policy, rather than preprocessing, for training stability")
         args.data_preprocess = ""
     dataset = get_dataset(args.dataset, "train", get_transform(True, args.data_preprocess),
                                        args.data_path)
