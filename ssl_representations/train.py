@@ -23,9 +23,11 @@ import torchvision
 import torchvision.models.detection
 
 from engine import train_one_epoch
+import utils
+
 import augment
 import vicreg
-import utils
+import barlow_twins
 
 from torchvision.models import resnet18
 import torchvision.transforms as T
@@ -88,6 +90,7 @@ def get_args_parser(add_help=True):
     parser.add_argument('--resume', default='', help='resume from checkpoint')
     parser.add_argument('--start_epoch', default=0, type=int, help='start epoch')
     parser.add_argument('--framework', default="vicreg", help='SSL framework to utilize (default: vicreg)')
+    parser.add_argument('--off-diag-coef', default=0.0051, type=float,help='Off-diag-coef for Barlow Twins loss (default: 0.0051 from original repo)')
     parser.add_argument('--data-preprocess', default="normalize", help='data preprocess policy (default: normalize)')
     parser.add_argument('--aug-policy', default="standard", help='data augment policy (default: vicreg)')
     parser.add_argument('--aug-strength', default="weak", help='Strength of augmentations (default: weak)')
@@ -195,6 +198,11 @@ def main(args):
         loss_coeff["lambda"] = 25.0
         loss_coeff["mu"] = 25.0
         loss_coeff["nu"] = 1.0
+
+    elif args.framework == 'barlowtwins'
+        loss_dict["barlowtwins"] = barlow_twins.BarlowTwinsLoss(expander_output=args.expander_output)
+        loss_coeff["lambda"] = args.off_diag_coef
+
     else:
         raise ValueError(f'Unimplemented SSL framework"{args.framework}"')
 
