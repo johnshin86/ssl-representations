@@ -66,13 +66,12 @@ def get_args_parser(add_help=True):
     parser.add_argument('--device', default='cuda', help='device')
     parser.add_argument('-b', '--batch-size', default=128, type=int,
                         help='images per gpu, the total batch size is $NGPU x batch_size')
-    parser.add_argument('--epochs', default=30, type=int, metavar='N',
+    parser.add_argument('--epochs', default=400, type=int, metavar='N',
                         help='number of total epochs to run')
     parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                         help='number of data loading workers (default: 4)')
     parser.add_argument('--lr', default=0.01, type=float,
-                        help='initial learning rate, 0.02 is the default value for training '
-                             'on 8 gpus and 2 images_per_gpu')
+                        help='initial learning rate, 0.01 is the default value for training')
     parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                         help='momentum')
     parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
@@ -91,7 +90,8 @@ def get_args_parser(add_help=True):
     parser.add_argument('--start_epoch', default=0, type=int, help='start epoch')
     parser.add_argument('--framework', default="vicreg", help='SSL framework to utilize (default: vicreg)')
     parser.add_argument('--data-preprocess', default="normalize", help='data preprocess policy (default: normalize)')
-    parser.add_argument('--data-augment', default="vicreg", help='data augment policy (default: vicreg)')
+    parser.add_argument('--aug-policy', default="standard", help='data augment policy (default: vicreg)')
+    parser.add_argument('--aug-strength', default="weak", help='Strength of augmentations (default: weak)')
     parser.add_argument(
         "--sync-bn",
         dest="sync_bn",
@@ -115,6 +115,12 @@ def get_args_parser(add_help=True):
 
 def main(args):
     if args.output_dir:
+        args.output_dir =  args.output_dir + "_" + str(args.dataset) + "_"
+        args.output_dir =  args.output_dir + "_" + str(args.batch_size) + "_"
+        args.output_dir =  args.output_dir + "_" + str(args.framework) + "_"
+        args.output_dir =  args.output_dir + "_" + str(args.data_preprocess) + "_"
+        args.output_dir =  args.output_dir + "_" + str(args.aug_policy) + "_"
+        args.output_dir =  args.output_dir + "_" + str(args.aug_strength)
         utils.mkdir(args.output_dir)
 
     utils.init_distributed_mode(args)
@@ -194,10 +200,13 @@ def main(args):
 
     augment_policy = None
 
-    if args.data_augment == "vicreg":
-        augment_policy = augment.VOC_augment(args.data_augment)
+    if args.aug_policy == "standard":
+        if args.dataset == "voc":
+            augment_policy = augment.VOC_augment(args.aug_policy, aug_strength = args.aug_strength)
+        else:
+            raise ValueError(f"Unimplemented dataset"{args.dataset}"")
     else:
-        raise ValueError(f'Unimplemented augment policy"{args.data_preprocess}"')
+        raise ValueError(f'Unimplemented augment policy"{args.aug_policy}"')
 
     # add options for optimizer
     optimizer = torch.optim.SGD(
