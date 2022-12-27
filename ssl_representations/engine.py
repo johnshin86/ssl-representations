@@ -82,6 +82,15 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq, lo
             "L_var": L_var,
             "L_cov": L_cov
             }
+        elif framework == "barlowtwins":
+            L_ondiag, L_offdiag = loss_dict["barlowtwins"](z_a, z_b)
+            
+            losses = L_ondiag + loss_coeff["lambda"] * L_offdiag
+            loss_value = losses.item()
+            loss_dict_print = {
+            "L_ondiag": L_ondiag
+            "L_offdiag": L_offdiag
+            }
         else:
             raise ValueError(f"Framework "{framework}" not implemented.")
 
