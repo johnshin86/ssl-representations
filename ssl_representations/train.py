@@ -30,19 +30,19 @@ import utils
 from torchvision.models import resnet18
 import torchvision.transforms as T
 
-def get_voc(root, image_set, transforms):
+def get_voc(root_path: str, image_set: str, transforms):
 
     t = []
-
     if transforms is not None:
         t.append(transforms)
     transforms = T.Compose(t)
 
-    dataset = torchvision.datasets.VOCDetection(root = root, transform=transforms)
+    #the VOCDetection class will handle the pathing
+    dataset = torchvision.datasets.VOCDetection(root = root_path, transform=transforms, image_set = image_set)
 
     return dataset
 
-def get_dataset(name, image_set: str, transform, data_path):
+def get_dataset(name: str, image_set: str, transform, data_path: str):
     paths = {
         "voc": (data_path, get_voc),
     }
@@ -140,10 +140,8 @@ def main(args):
             train_sampler, args.batch_size, drop_last=True)
 
     data_loader = torch.utils.data.DataLoader(
-        #dataset, batch_sampler=train_batch_sampler, num_workers=args.workers,
-        #collate_fn=utils.collate_fn)
-
-        dataset, batch_sampler=train_batch_sampler, num_workers=args.workers)
+        dataset, batch_sampler=train_batch_sampler, num_workers=args.workers,
+        collate_fn=utils.collate_fn)
 
     print("Creating model")
     
@@ -164,13 +162,6 @@ def main(args):
                     torch.nn.ReLU(),
                     torch.nn.Linear(2048, 2048),                     
                      )
-
-    if (args.bands == "SAR") and (args.model == "resnet18"):
-        model.conv1 = torch.nn.Conv2d(2, 64, kernel_size =(7,7), stride = (2,2), padding = (3,3), bias=False)
-    elif (args.bands == "SAR_VV") and (args.model == "resnet18"):
-        model.conv1 = torch.nn.Conv2d(1, 64, kernel_size =(7,7), stride = (2,2), padding = (3,3), bias=False)
-    elif (args.bands == "SAR_VH") and (args.model == "resnet18"):
-        model.conv1 = torch.nn.Conv2d(1, 64, kernel_size =(7,7), stride = (2,2), padding = (3,3), bias=False)
 
     print(model)
 
@@ -204,7 +195,7 @@ def main(args):
     augment_policy = None
 
     if args.data_augment == "vicreg":
-        augment_policy = augment.sen12ms_augment(args.data_augment, bands = bands)
+        augment_policy = augment.VOC_augment(args.data_augment)
     else:
         raise ValueError(f'Unimplemented augment policy"{args.data_preprocess}"')
 
