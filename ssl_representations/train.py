@@ -132,7 +132,7 @@ def main(args):
     # Data loading code
     print("Loading data")
     print("Data preprocess type:", args.data_preprocess)
-    if args.aug_strength == 'strong':
+    if 'strong' in args.aug_strength:
         print("Augmentation strength is set to strong, moving normalization to policy, rather than preprocessing, for training stability")
         args.data_preprocess = ""
     dataset = get_dataset(args.dataset, "train", get_transform(True, args.data_preprocess),
