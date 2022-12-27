@@ -14,6 +14,45 @@ import numpy as np
 import pickle
 
 def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq, loss_dict, loss_coeff, augment_policy, framework: str):
+    r"""The workhorse function. Handles logging, loss computation, and backprop for one epoch.
+    
+    Parameters
+    ----------
+    model: subclass(torch.nn.Module)
+        pytorch model.
+
+    optimizer: subclass(torch.nn.Optimizer)
+        pytorch optimizer.
+    
+    data_loader: torch.utils.data.DataLoader
+        pytorch DataLoader.
+
+    device: str
+        Device to perform computation on.
+
+    epoch: int
+        Current epoch.
+
+    print_freq:
+        Print frequency over batches.
+
+    loss_dict: dict
+        Dictionary of SSL losses.
+
+    loss_coeff: dict
+        Dictionary of loss coefficients.
+
+    augment_policy: object
+        Object of the augmentation policy.
+
+    framework: str
+        String of the SSL framework.
+
+    Returns
+    -------
+    metric_logger: object
+        Returns the metric logger object. 
+    """
     model.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))

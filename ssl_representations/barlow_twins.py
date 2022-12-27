@@ -3,6 +3,9 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 
+#TODO: make more consistent with how VICReg is written/works.
+# Add docstrings and generally clean up.
+
 class BarlowTwins(nn.Module):
     def __init__(self, args):
         super().__init__()
