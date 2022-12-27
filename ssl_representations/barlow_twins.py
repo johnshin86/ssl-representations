@@ -10,7 +10,7 @@ class BarlowTwinsLoss(_Loss):
 
     The forward method of the class computes the cross-correlation matrix of the two representations over the batch
     """
-    def __init__(self, expander_output: int, off_diag_coef: float):
+    def __init__(self, expander_output: int):
         super().__init__()
         self.bn = torch.nn.BatchNorm1d(expander_output, affine = False)
         self.off_diag_coef = off_diag_coef
@@ -29,9 +29,8 @@ class BarlowTwinsLoss(_Loss):
 
         on_diag = torch.diagonal(c).add_(-1).pow_(2).sum()
         off_diag = off_diagonal(c).pow_(2).sum()
-        loss = on_diag + self.off_diag_coef * off_diag
 
-        return loss
+        return on_diag, off_diag
 
 def off_diagonal(x):
     # return a flattened view of the off-diagonal elements of a square matrix
