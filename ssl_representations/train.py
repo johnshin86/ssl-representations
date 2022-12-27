@@ -78,8 +78,6 @@ def get_args_parser(add_help=True):
                         metavar='W', help='weight decay (default: 1e-4)',
                         dest='weight_decay')
     parser.add_argument('--lr-scheduler', default="cosineannealinglr", help='the lr scheduler (default: multisteplr)')
-    parser.add_argument('--lr-step-size', default=8, type=int,
-                        help='decrease lr every step-size epochs (multisteplr scheduler only)')
     parser.add_argument('--lr-steps', default=[16, 22], nargs='+', type=int,
                         help='decrease lr every step-size epochs (multisteplr scheduler only)')
     parser.add_argument('--lr-gamma', default=0.1, type=float,
@@ -130,9 +128,7 @@ def main(args):
 
     # Data loading code
     print("Loading data")
-
-    print("Data augmentation type:", args.data_preprocess)
-
+    print("Data preprocess type:", args.data_preprocess)
     dataset = get_dataset(args.dataset, "train", get_transform(True, args.data_preprocess),
                                        args.data_path)
 
@@ -150,12 +146,9 @@ def main(args):
         collate_fn=utils.collate_fn)
 
     print("Creating model")
-    
     # need to chop off linear classifier of existing library models 
     # and add an expander function
-
     # TODO: handle model import and expander better. 
-
     if args.model == "resnet18":
         model = resnet18(pretrained = False)
 
@@ -168,6 +161,9 @@ def main(args):
                     torch.nn.ReLU(),
                     torch.nn.Linear(2048, 2048),                     
                      )
+
+    else:
+        raise ValueError(f"Model type {args.model} not implemented.")
 
     print(model)
 
