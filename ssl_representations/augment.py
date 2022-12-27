@@ -7,23 +7,36 @@ class VOC_preprocess:
     augmented. 
     """
     def __init__(self, data_preprocess: str):
+        r"""
+        Parameters
+        ----------
+        data_preprocess: str
+            A string designating the type of preprocessing.
+        """
 
         self.data_preprocess = data_preprocess
+        
         #Mean and std of the dataset computed with (224,224) center cropping.
         self.mean = torch.tensor([0.4570, 0.4382, 0.4062])
         self.std = torch.tensor([0.2345, 0.2305, 0.2353])
 
-        if data_preprocess == "normalize":
+        if self.data_preprocess == "normalize":
             self.transforms = T.Compose([
                     T.ToTensor(),
                     T.Normalize(self.mean, self.std),
                     T.Resize((224, 224))
             ])
-        else:
+
+        # For strong augmentations, normalization in the pre-processing step appears to break training stability (i.e. NaN values)
+        # As such, normalization is turned off here and moved to the augmentation policy.
+
+        elif self.data_preprocess == '':
             self.transforms = T.Compose([
                     T.ToTensor(),
                     T.Resize((224, 224))
             ])
+        else:
+            raise ValueError(f"Data preprocess type "{self.data_preprocess}" is unknown.")
 
     def __call__(self, img):
         return self.transforms(img)
@@ -33,6 +46,15 @@ class VOC_augment:
     training for non-contrastive self-supervised learning methods. 
     """
     def __init__(self, aug_policy: str, aug_strength: str):
+        r"""
+        Parameters
+        ----------
+        aug_policy: str
+            A string designating the augmentation policy.
+
+        aug_strength: str
+            A string designating the augmentation strength.
+        """
 
         self.aug_policy = aug_policy
         self.aug_strength = aug_strength
@@ -71,9 +93,7 @@ class VOC_augment:
                     ])
 
             else:
-                raise ValueError(f'Unknown augmentation strength "{aug_strength}"')
-
-                
+                raise ValueError(f'Unknown augmentation strength "{aug_strength}"')                
 
         else:
             raise ValueError(f'Unknown data augmentation policy "{aug_policy}"')
