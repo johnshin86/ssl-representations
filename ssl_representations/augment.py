@@ -36,7 +36,7 @@ class VOC_preprocess:
                     T.Resize((224, 224))
             ])
         else:
-            raise ValueError(f"Data preprocess type "{self.data_preprocess}" is unknown.")
+            raise ValueError(f'Data preprocess type "{self.data_preprocess}" is unknown.')
 
     def __call__(self, img):
         return self.transforms(img)

@@ -186,7 +186,7 @@ def main(args):
         model.fc = expander
 
     else:
-        raise ValueError(f"Model type "{args.model}" not implemented.")
+        raise ValueError(f'Model type "{args.model}" not implemented.')
 
     print(model)
 
@@ -215,7 +215,7 @@ def main(args):
         loss_coeff["mu"] = 25.0
         loss_coeff["nu"] = 1.0
 
-    elif args.framework == 'barlowtwins'
+    elif args.framework == 'barlowtwins':
         loss_dict["barlowtwins"] = barlow_twins.BarlowTwinsLoss(expander_output=args.expander_output)
         loss_coeff["lambda"] = args.off_diag_coef
 
@@ -228,7 +228,7 @@ def main(args):
         if args.dataset == "voc":
             augment_policy = augment.VOC_augment(args.aug_policy, aug_strength = args.aug_strength)
         else:
-            raise ValueError(f"Unimplemented dataset"{args.dataset}"")
+            raise ValueError(f'Unimplemented dataset"{args.dataset}"')
     else:
         raise ValueError(f'Unimplemented augment policy"{args.aug_policy}"')
 
