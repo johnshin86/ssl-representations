@@ -90,7 +90,7 @@ class VOC_augment:
 
             elif self.aug_strength == 'noisy_strong':
                 self.transforms = T.Compose([
-                    T.RandomResizedCrop(size = (224,224), scale = (0.05, 1.0))
+                    T.RandomResizedCrop(size = (224,224), scale = (0.05, 1.0)),
                     T.RandomHorizontalFlip(p = 0.5),
                     self.RandomJitter,
                     self.RandomGrayscale,
