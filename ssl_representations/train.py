@@ -32,7 +32,7 @@ import barlow_twins
 from torchvision.models import resnet18
 import torchvision.transforms as T
 
-def get_voc(root_path: str, annFilePath: str, transforms):
+def get_coco(root_path: str, annFilePath: str, transforms):
 
     t = []
     if transforms is not None:
@@ -43,7 +43,7 @@ def get_voc(root_path: str, annFilePath: str, transforms):
 
     return dataset
 
-def get_coco(root_path: str, image_set: str, transforms):
+def get_voc(root_path: str, image_set: str, transforms):
 
     t = []
     if transforms is not None:
