@@ -6,7 +6,7 @@ from torch.autograd import Variable
 
 class LayerNormConv2d(nn.Module):
     """
-    Layer norm that just works on the channel axis for a Conv2d
+    Layer norm that works on the channel axis for a Conv2d
     Ref:
     - code modified from https://github.com/Scitator/Run-Skeleton-Run/blob/master/common/modules/LayerNorm.py
     - paper: https://arxiv.org/abs/1607.06450

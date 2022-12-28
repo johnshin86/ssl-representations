@@ -32,7 +32,18 @@ import barlow_twins
 from torchvision.models import resnet18
 import torchvision.transforms as T
 
-def get_voc(root_path: str, image_set: str, transforms):
+def get_voc(root_path: str, annFilePath: str, transforms):
+
+    t = []
+    if transforms is not None:
+        t.append(transforms)
+    transforms = T.Compose(t)
+
+    dataset = torchvision.datasets.CocoDetection(root = root_path, annFile = annFilePath, transform=transforms)
+
+    return dataset
+
+def get_coco(root_path: str, image_set: str, transforms):
 
     t = []
     if transforms is not None:
@@ -44,13 +55,17 @@ def get_voc(root_path: str, image_set: str, transforms):
 
     return dataset
 
-def get_dataset(name: str, image_set: str, transform, data_path: str):
+def get_dataset(name: str, image_set: str, transform, data_path: str, annFilePath: str):
     paths = {
         "voc": (data_path, get_voc),
+        "coco": (data_path, get_coco)
     }
     p, ds_fn = paths[name]
 
-    ds = ds_fn(p, image_set=image_set, transforms=transform)
+    if name == "voc"
+        ds = ds_fn(p, image_set=image_set, transforms=transform)
+    elif name == "coco"
+        ds = ds_fn(p, image_set=image_set, annFilePath= annFilePath, transforms=transform)
     return ds
 
 
@@ -64,6 +79,7 @@ def get_args_parser(add_help=True):
 
     parser.add_argument('--data-path', default='/media/john/EEA Drive 1/datasets/VOC2012/', help='dataset')
     parser.add_argument('--dataset', default='voc', help='dataset')
+    parser.add_argument('--annFilePath', default="", help='Annotation file path for datasets with separate annotations.')
     parser.add_argument('--model', default='resnet18', help='model')
     parser.add_argument('--device', default='cuda', help='device')
     parser.add_argument('-b', '--batch-size', default=128, type=int,
@@ -93,7 +109,7 @@ def get_args_parser(add_help=True):
     parser.add_argument('--off-diag-coef', default=0.0051, type=float,help='Off-diag-coef for Barlow Twins loss (default: 0.0051 from original repo)')
     parser.add_argument('--data-preprocess', default="normalize", help='data preprocess policy (default: normalize)')
     parser.add_argument('--aug-policy', default="standard", help='data augment policy (default: vicreg)')
-    parser.add_argument('--aug-strength', default="weak", help='Strength of augmentations (default: weak)')
+    parser.add_argument('--aug-strength', default="strong", help='Strength of augmentations (default: weak)')
     parser.add_argument('--expander-input', default=512, type=int, help='Input dimension of expander function')
     parser.add_argument('--expander-output', default=2048, type=int, help='Output dimension of expander function')
     parser.add_argument(
@@ -139,7 +155,7 @@ def main(args):
         print("Augmentation strength is set to strong, moving normalization to policy, rather than preprocessing, for training stability")
         args.data_preprocess = ""
     dataset = get_dataset(args.dataset, "train", get_transform(True, args.data_preprocess),
-                                       args.data_path)
+                                       args.data_path, annFilePath = args.annFilePath)
 
     print("Creating data loaders")
     if args.distributed:
