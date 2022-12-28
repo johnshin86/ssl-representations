@@ -56,6 +56,9 @@ class VOC_augment:
             A string designating the augmentation strength.
         """
 
+        self.mean = torch.tensor([0.4570, 0.4382, 0.4062])
+        self.std = torch.tensor([0.2345, 0.2305, 0.2353])
+
         self.aug_policy = aug_policy
         self.aug_strength = aug_strength
 
@@ -85,7 +88,7 @@ class VOC_augment:
             elif self.aug_strength == 'strong':
                 self.transforms = T.Compose([
                     T.RandomResizedCrop(size = (224,224), scale = (0.05, 1.0)),
-                    T.Normalize(mean, std),
+                    T.Normalize(self.mean, self.std),
                     ])
 
             elif self.aug_strength == 'noisy_strong':
@@ -96,7 +99,7 @@ class VOC_augment:
                     self.RandomGrayscale,
                     self.RandomGaussian,
                     T.RandomSolarize(p = 0.1),
-                    T.Normalize(mean, std),
+                    T.Normalize(self.mean, self.std),
                     ])
 
             else:
