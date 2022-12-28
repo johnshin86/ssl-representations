@@ -138,6 +138,12 @@ def get_args_parser(add_help=True):
 
 
 def main(args):
+    
+    print("Data preprocess type:", args.data_preprocess)
+    if 'strong' in args.aug_strength and args.data_preprocess == "normalize":
+        print("Augmentation strength is set to strong, moving normalization to policy, rather than preprocessing, for training stability")
+        args.data_preprocess = "resize"
+
     if args.output_dir:
         args.output_dir =  args.output_dir + str(args.dataset) 
         args.output_dir =  args.output_dir + "_" + str(args.batch_size) 
@@ -154,10 +160,6 @@ def main(args):
 
     # Data loading code
     print("Loading data")
-    print("Data preprocess type:", args.data_preprocess)
-    if 'strong' in args.aug_strength:
-        print("Augmentation strength is set to strong, moving normalization to policy, rather than preprocessing, for training stability")
-        args.data_preprocess = ""
     dataset = get_dataset(args.dataset, "train", get_transform(True, args.data_preprocess),
                                        args.data_path, annFilePath = args.annFilePath)
 
@@ -263,7 +265,7 @@ def main(args):
             train_sampler.set_epoch(epoch)
         train_one_epoch(model, optimizer, data_loader, device, epoch, args.print_freq, loss_dict, loss_coeff, augment_policy, args.framework)
         lr_scheduler.step()
-        if epoch % args.save_freq == 0:
+        if (epoch + 1) % args.save_freq == 0:
             if args.output_dir:
                 checkpoint = {
                     'model': model_without_ddp.state_dict(),

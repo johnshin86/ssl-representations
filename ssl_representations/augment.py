@@ -30,7 +30,7 @@ class VOC_preprocess:
         # For strong augmentations, normalization in the pre-processing step appears to break training stability (i.e. NaN values)
         # As such, normalization is turned off here and moved to the augmentation policy.
 
-        elif self.data_preprocess == '':
+        elif self.data_preprocess == 'resize':
             self.transforms = T.Compose([
                     T.ToTensor(),
                     T.Resize((224, 224))
@@ -81,7 +81,7 @@ class VOC_augment:
                     T.RandomHorizontalFlip(p = 0.5),
                     self.RandomJitter,
                     self.RandomGrayscale,
-                    T.RandomSolarize(p = 0.1),
+                    #T.RandomSolarize(p = 0.1, threshold=.5),
                     self.RandomGaussian,
                     ])
 
@@ -98,7 +98,7 @@ class VOC_augment:
                     self.RandomJitter,
                     self.RandomGrayscale,
                     self.RandomGaussian,
-                    T.RandomSolarize(p = 0.1),
+                    #T.RandomSolarize(p = 0.1, threshold=.5),
                     T.Normalize(self.mean, self.std),
                     ])
 
