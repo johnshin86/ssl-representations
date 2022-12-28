@@ -277,7 +277,7 @@ def main(args):
                 }
                 utils.save_on_master(
                     checkpoint,
-                    os.path.join(args.output_dir, 'model_{}.pth'.format(epoch)))
+                    os.path.join(args.output_dir, 'model_{}.pth'.format(epoch + 1)))
                 utils.save_on_master(
                     checkpoint,
                     os.path.join(args.output_dir, 'checkpoint.pth'))
