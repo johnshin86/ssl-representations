@@ -32,6 +32,10 @@ import barlow_twins
 from torchvision.models import resnet18
 import torchvision.transforms as T
 
+#TODO:
+# TEST BARLOW TWINS LOSS
+# TEST COCO DATASET 
+
 def get_coco(root_path: str, annFilePath: str, transforms):
 
     t = []
@@ -135,11 +139,11 @@ def get_args_parser(add_help=True):
 
 def main(args):
     if args.output_dir:
-        args.output_dir =  args.output_dir + "_" + str(args.dataset) + "_"
-        args.output_dir =  args.output_dir + "_" + str(args.batch_size) + "_"
-        args.output_dir =  args.output_dir + "_" + str(args.framework) + "_"
-        args.output_dir =  args.output_dir + "_" + str(args.data_preprocess) + "_"
-        args.output_dir =  args.output_dir + "_" + str(args.aug_policy) + "_"
+        args.output_dir =  args.output_dir + str(args.dataset) 
+        args.output_dir =  args.output_dir + "_" + str(args.batch_size) 
+        args.output_dir =  args.output_dir + "_" + str(args.framework) 
+        args.output_dir =  args.output_dir + "_" + str(args.data_preprocess) 
+        args.output_dir =  args.output_dir + "_" + str(args.aug_policy) 
         args.output_dir =  args.output_dir + "_" + str(args.aug_strength)
         utils.mkdir(args.output_dir)
 
