@@ -62,9 +62,9 @@ def get_dataset(name: str, image_set: str, transform, data_path: str, annFilePat
     }
     p, ds_fn = paths[name]
 
-    if name == "voc"
+    if name == "voc":
         ds = ds_fn(p, image_set=image_set, transforms=transform)
-    elif name == "coco"
+    elif name == "coco":
         ds = ds_fn(p, image_set=image_set, annFilePath= annFilePath, transforms=transform)
     return ds
 
