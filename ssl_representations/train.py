@@ -196,9 +196,10 @@ def main(args):
 
     print(model)
 
+
     model.to(device)
 
-    # convert batchnorms for distributed environment
+    # Use distributed
     if args.distributed and args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
@@ -209,6 +210,8 @@ def main(args):
 
     params = [p for p in model.parameters() if p.requires_grad]
 
+
+    # Loss params
     loss_dict = {}
     loss_coeff = {}
 
@@ -228,6 +231,7 @@ def main(args):
     else:
         raise ValueError(f'Unimplemented SSL framework"{args.framework}"')
 
+    # Aug policy
     augment_policy = None
 
     if args.aug_policy == "standard":
