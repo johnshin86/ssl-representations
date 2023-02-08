@@ -4,6 +4,8 @@ import torch.nn as nn
 
 from torch.autograd import Variable
 
+#For ConvNext
+
 class LayerNormConv2d(nn.Module):
     """
     Layer norm that works on the channel axis for a Conv2d
