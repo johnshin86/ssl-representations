@@ -6,6 +6,8 @@ notebooks/*.pth
 notebooks/
 notebooks/data/
 notebooks/sen12flood_resnet18_changepoint_test.ipynb
+ssl_representations/commands.txt
+
 
 
 # Byte-compiled / optimized / DLL files
