@@ -17,11 +17,14 @@ class InfoNCE(_Loss):
 
 		z_norm = torch.linalg.norm(z, ord = 2, dim = 1) # Norm over F
 
+		# Is F.normalize faster?
+
 		z_normalized = z / z_norm[:, None]
 
 		similarity = z_normalized @ z_normalized.T 
 
-		#masking?
+		#For a given i, need to mask the i'th entry in the normalization sum. 
+		#To do this, we mask the diagonal, then sum the row
 
 		return 
 
