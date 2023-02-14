@@ -1,293 +1,331 @@
-r"""PyTorch Self-Supervised Learning Training.
-To run in a multi-gpu environment, use the distributed launcher::
-    python -m torch.distributed.launch --nproc_per_node=$NGPU --use_env \
-        train.py ... --world-size $NGPU
-The default hyperparameters are tuned for training on 8 gpus and 2 images per gpu.
-    --lr 0.02 --batch-size 2 --world-size 8
-If you use different number of gpus, the learning rate should be changed to 0.02/8*$NGPU.
-"""
-
-#Need to refactor. 
-
-
-import datetime
+from pathlib import Path
+import argparse
+import json
+import math
 import os
+import sys
 import time
 
 import torch
-import torch.utils.data
-import torchvision
-import torchvision.models.detection
+import torch.nn.functional as F
+from torch import nn, optim
+import torch.distributed as dist
+import torchvision.datasets as datasets
 
-from engine import train_one_epoch
-import utils
+import augmentations as aug
+from distributed import init_distributed_mode
 
-import augment
-import vicreg
-import barlow_twins
-
-from torchvision.models import resnet18
-import torchvision.transforms as T
-
-#TODO:
-# TEST BARLOW TWINS LOSS
-# TEST COCO DATASET 
-
-def get_coco(root_path: str, annFilePath: str, transforms):
-
-    t = []
-    if transforms is not None:
-        t.append(transforms)
-    transforms = T.Compose(t)
-
-    dataset = torchvision.datasets.CocoDetection(root = root_path, annFile = annFilePath, transform=transforms)
-
-    return dataset
-
-def get_voc(root_path: str, image_set: str, transforms):
-
-    t = []
-    if transforms is not None:
-        t.append(transforms)
-    transforms = T.Compose(t)
-
-    #the VOCDetection class will handle the pathing
-    dataset = torchvision.datasets.VOCDetection(root = root_path, transform=transforms, image_set = image_set)
-
-    return dataset
-
-def get_dataset(name: str, image_set: str, transform, data_path: str, annFilePath: str):
-    paths = {
-        "voc": (data_path, get_voc),
-        "coco": (data_path, get_coco)
-    }
-    p, ds_fn = paths[name]
-
-    if name == "voc":
-        ds = ds_fn(p, image_set=image_set, transforms=transform)
-    elif name == "coco":
-        ds = ds_fn(p, image_set=image_set, annFilePath= annFilePath, transforms=transform)
-    return ds
+import resnet
 
 
-def get_transform(train, data_preprocess):
-    return augment.VOC_preprocess(data_preprocess) if train else None
+def get_arguments():
+    parser = argparse.ArgumentParser(description="Pretrain a model with different SSL methods.", add_help=False)
 
+    # Data
+    parser.add_argument("--data-dir", type=Path, default="/path/to/imagenet", required=True,
+                        help='Path to the image net dataset')
 
-def get_args_parser(add_help=True):
-    import argparse
-    parser = argparse.ArgumentParser(description='SSL training for representation analysis', add_help=add_help)
+    # Checkpoints
+    parser.add_argument("--exp-dir", type=Path, default="./exp",
+                        help='Path to the experiment folder, where all logs/checkpoints will be stored')
+    parser.add_argument("--log-freq-time", type=int, default=60,
+                        help='Print logs to the stats.txt file every [log-freq-time] seconds')
 
-    parser.add_argument('--data-path', default='', help='dataset')
-    parser.add_argument('--dataset', default='voc', help='dataset')
-    parser.add_argument('--annFilePath', default="", help='Annotation file path for datasets with separate annotations.')
-    parser.add_argument('--model', default='resnet18', help='model')
-    parser.add_argument('--device', default='cuda', help='device')
-    parser.add_argument('-b', '--batch-size', default=128, type=int,
-                        help='images per gpu, the total batch size is $NGPU x batch_size')
-    parser.add_argument('--epochs', default=400, type=int, metavar='N',
-                        help='number of total epochs to run')
-    parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
-                        help='number of data loading workers (default: 4)')
-    parser.add_argument('--lr', default=0.01, type=float,
-                        help='initial learning rate, 0.01 is the default value for training')
-    parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
-                        help='momentum')
-    parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
-                        metavar='W', help='weight decay (default: 1e-4)',
-                        dest='weight_decay')
-    parser.add_argument('--lr-scheduler', default="cosineannealinglr", help='the lr scheduler (default: cosineannealinglr)')
-    parser.add_argument('--lr-steps', default=[100, 200, 300], nargs='+', type=int,
-                        help='decrease lr every step-size epochs (multisteplr scheduler only)')
-    parser.add_argument('--lr-gamma', default=0.1, type=float,
-                        help='decrease lr by a factor of lr-gamma (multisteplr scheduler only)')
-    parser.add_argument('--print-freq', default=20, type=int, help='print frequency')
-    parser.add_argument('--save-freq', default=100, type=int, help='save frequency')
-    parser.add_argument('--output-dir', default='/media/john/EEA Drive 1/ssl_representations/', help='path where to save')
-    parser.add_argument('--resume', default='', help='resume from checkpoint')
-    parser.add_argument('--start_epoch', default=0, type=int, help='start epoch')
-    parser.add_argument('--framework', default="vicreg", help='SSL framework to utilize (default: vicreg)')
-    parser.add_argument('--off-diag-coef', default=0.0051, type=float,help='Off-diag-coef for Barlow Twins loss (default: 0.0051 from original repo)')
-    parser.add_argument('--data-preprocess', default="normalize", help='data preprocess policy (default: normalize)')
-    parser.add_argument('--aug-policy', default="standard", help='data augment policy (default: vicreg)')
-    parser.add_argument('--aug-strength', default="strong", help='Strength of augmentations (default: weak)')
-    parser.add_argument('--expander-input', default=512, type=int, help='Input dimension of expander function')
-    parser.add_argument('--expander-output', default=2048, type=int, help='Output dimension of expander function')
-    parser.add_argument(
-        "--sync-bn",
-        dest="sync_bn",
-        help="Use sync batch norm",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--pretrained",
-        dest="pretrained",
-        help="Use pre-trained models from the modelzoo",
-        action="store_true",
-    )
+    # Model
+    parser.add_argument("--arch", type=str, default="resnet50",
+                        help='Architecture of the backbone encoder network')
+    parser.add_argument("--mlp", default="8192-8192-8192",
+                        help='Size and number of layers of the MLP expander head')
 
-    # distributed training parameters
+    # Optim
+    parser.add_argument("--epochs", type=int, default=100,
+                        help='Number of epochs')
+    parser.add_argument("--batch-size", type=int, default=2048,
+                        help='Effective batch size (per worker batch size is [batch-size] / world-size)')
+    parser.add_argument("--base-lr", type=float, default=0.2,
+                        help='Base learning rate, effective learning after warmup is [base-lr] * [batch-size] / 256')
+    parser.add_argument("--wd", type=float, default=1e-6,
+                        help='Weight decay')
+
+    # Loss
+    parser.add_argument("--sim-coeff", type=float, default=25.0,
+                        help='Invariance regularization loss coefficient')
+    parser.add_argument("--std-coeff", type=float, default=25.0,
+                        help='Variance regularization loss coefficient')
+    parser.add_argument("--cov-coeff", type=float, default=1.0,
+                        help='Covariance regularization loss coefficient')
+
+    # Running
+    parser.add_argument("--num-workers", type=int, default=10)
+    parser.add_argument('--device', default='cuda',
+                        help='device to use for training / testing')
+
+    # Distributed
     parser.add_argument('--world-size', default=1, type=int,
                         help='number of distributed processes')
-    parser.add_argument('--dist-url', default='env://', help='url used to set up distributed training')
+    parser.add_argument('--local_rank', default=-1, type=int)
+    parser.add_argument('--dist-url', default='env://',
+                        help='url used to set up distributed training')
 
     return parser
 
 
 def main(args):
-    
-    print("Data preprocess type:", args.data_preprocess)
-    if 'strong' in args.aug_strength and args.data_preprocess == "normalize":
-        print("Augmentation strength is set to strong, moving normalization to policy, rather than preprocessing, for training stability")
-        args.data_preprocess = "resize"
-
-    if args.output_dir:
-        args.output_dir =  args.output_dir + str(args.dataset) 
-        args.output_dir =  args.output_dir + "_" + str(args.batch_size) 
-        args.output_dir =  args.output_dir + "_" + str(args.framework) 
-        args.output_dir =  args.output_dir + "_" + str(args.data_preprocess) 
-        args.output_dir =  args.output_dir + "_" + str(args.aug_policy) 
-        args.output_dir =  args.output_dir + "_" + str(args.aug_strength)
-        utils.mkdir(args.output_dir)
-
-    utils.init_distributed_mode(args)
+    torch.backends.cudnn.benchmark = True
+    init_distributed_mode(args)
     print(args)
+    gpu = torch.device(args.device)
 
-    device = torch.device(args.device)
+    if args.rank == 0:
+        args.exp_dir.mkdir(parents=True, exist_ok=True)
+        stats_file = open(args.exp_dir / "stats.txt", "a", buffering=1)
+        print(" ".join(sys.argv))
+        print(" ".join(sys.argv), file=stats_file)
 
-    # Data loading code
-    print("Loading data")
-    dataset = get_dataset(args.dataset, "train", get_transform(True, args.data_preprocess),
-                                       args.data_path, annFilePath = args.annFilePath)
+    transforms = aug.TrainTransform()
 
-    print("Creating data loaders")
-    if args.distributed:
-        train_sampler = torch.utils.data.distributed.DistributedSampler(dataset)
+    dataset = datasets.ImageFolder(args.data_dir / "train", transforms)
+    sampler = torch.utils.data.distributed.DistributedSampler(dataset, shuffle=True)
+    assert args.batch_size % args.world_size == 0
+    per_device_batch_size = args.batch_size // args.world_size
+    loader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=per_device_batch_size,
+        num_workers=args.num_workers,
+        pin_memory=True,
+        sampler=sampler,
+    )
+
+    model = VICReg(args).cuda(gpu)
+    model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
+    model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[gpu])
+    optimizer = LARS(
+        model.parameters(),
+        lr=0,
+        weight_decay=args.wd,
+        weight_decay_filter=exclude_bias_and_norm,
+        lars_adaptation_filter=exclude_bias_and_norm,
+    )
+
+    if (args.exp_dir / "model.pth").is_file():
+        if args.rank == 0:
+            print("resuming from checkpoint")
+        ckpt = torch.load(args.exp_dir / "model.pth", map_location="cpu")
+        start_epoch = ckpt["epoch"]
+        model.load_state_dict(ckpt["model"])
+        optimizer.load_state_dict(ckpt["optimizer"])
     else:
-        train_sampler = torch.utils.data.RandomSampler(dataset)
+        start_epoch = 0
 
-    train_batch_sampler = torch.utils.data.BatchSampler(
-            train_sampler, args.batch_size, drop_last=True)
+    start_time = last_logging = time.time()
+    scaler = torch.cuda.amp.GradScaler()
+    for epoch in range(start_epoch, args.epochs):
+        sampler.set_epoch(epoch)
+        for step, ((x, y), _) in enumerate(loader, start=epoch * len(loader)):
+            x = x.cuda(gpu, non_blocking=True)
+            y = y.cuda(gpu, non_blocking=True)
 
-    data_loader = torch.utils.data.DataLoader(
-        dataset, batch_sampler=train_batch_sampler, num_workers=args.workers,
-        collate_fn=utils.collate_fn)
+            lr = adjust_learning_rate(args, optimizer, loader, step)
 
-    print("Creating Expander")
-    expander = torch.nn.Sequential(torch.nn.Linear(args.expander_input, args.expander_output),
-                    torch.nn.BatchNorm1d(num_features = args.expander_output),
-                    torch.nn.ReLU(),
-                    torch.nn.Linear(args.expander_output, args.expander_output),
-                    torch.nn.BatchNorm1d(num_features = args.expander_output),
-                    torch.nn.ReLU(),
-                    torch.nn.Linear(args.expander_output, args.expander_output),                     
-                     )
+            optimizer.zero_grad()
+            with torch.cuda.amp.autocast():
+                loss = model.forward(x, y)
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
 
-    print("Creating model")
-    if args.model == "resnet18":
-        model = resnet18(pretrained = False)
-        model.fc = expander
+            current_time = time.time()
+            if args.rank == 0 and current_time - last_logging > args.log_freq_time:
+                stats = dict(
+                    epoch=epoch,
+                    step=step,
+                    loss=loss.item(),
+                    time=int(current_time - start_time),
+                    lr=lr,
+                )
+                print(json.dumps(stats))
+                print(json.dumps(stats), file=stats_file)
+                last_logging = current_time
+        if args.rank == 0:
+            state = dict(
+                epoch=epoch + 1,
+                model=model.state_dict(),
+                optimizer=optimizer.state_dict(),
+            )
+            torch.save(state, args.exp_dir / "model.pth")
+    if args.rank == 0:
+        torch.save(model.module.backbone.state_dict(), args.exp_dir / "resnet50.pth")
 
+
+def adjust_learning_rate(args, optimizer, loader, step):
+    max_steps = args.epochs * len(loader)
+    warmup_steps = 10 * len(loader)
+    base_lr = args.base_lr * args.batch_size / 256
+    if step < warmup_steps:
+        lr = base_lr * step / warmup_steps
     else:
-        raise ValueError(f'Model type "{args.model}" not implemented.')
-
-    print(model)
-
-
-    model.to(device)
-
-    # Use distributed
-    if args.distributed and args.sync_bn:
-        model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-
-    model_without_ddp = model
-    if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
-        model_without_ddp = model.module
-
-    params = [p for p in model.parameters() if p.requires_grad]
+        step -= warmup_steps
+        max_steps -= warmup_steps
+        q = 0.5 * (1 + math.cos(math.pi * step / max_steps))
+        end_lr = base_lr * 0.001
+        lr = base_lr * q + end_lr * (1 - q)
+    for param_group in optimizer.param_groups:
+        param_group["lr"] = lr
+    return lr
 
 
-    # Loss params
-    loss_dict = {}
-    loss_coeff = {}
+class VICReg(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+        self.args = args
+        self.num_features = int(args.mlp.split("-")[-1])
+        self.backbone, self.embedding = resnet.__dict__[args.arch](
+            zero_init_residual=True
+        )
+        self.projector = Projector(args, self.embedding)
 
-    if args.framework == 'vicreg':
-        loss_dict["mse"] = torch.nn.MSELoss(reduction='mean')
-        loss_dict["var"] = vicreg.VarianceLoss()
-        loss_dict["cov"] = vicreg.CovarianceLoss()
+    def forward(self, x, y):
+        x = self.projector(self.backbone(x))
+        y = self.projector(self.backbone(y))
 
-        loss_coeff["lambda"] = 25.0
-        loss_coeff["mu"] = 25.0
-        loss_coeff["nu"] = 1.0
+        repr_loss = F.mse_loss(x, y)
 
-    elif args.framework == 'barlowtwins':
-        loss_dict["barlowtwins"] = barlow_twins.BarlowTwinsLoss(expander_output=args.expander_output, batch_size = args.batch_size)
-        loss_coeff["lambda"] = args.off_diag_coef
+        x = torch.cat(FullGatherLayer.apply(x), dim=0)
+        y = torch.cat(FullGatherLayer.apply(y), dim=0)
+        x = x - x.mean(dim=0)
+        y = y - y.mean(dim=0)
 
-    else:
-        raise ValueError(f'Unimplemented SSL framework"{args.framework}"')
+        std_x = torch.sqrt(x.var(dim=0) + 0.0001)
+        std_y = torch.sqrt(y.var(dim=0) + 0.0001)
+        std_loss = torch.mean(F.relu(1 - std_x)) / 2 + torch.mean(F.relu(1 - std_y)) / 2
 
-    # Aug policy
-    augment_policy = None
+        cov_x = (x.T @ x) / (self.args.batch_size - 1)
+        cov_y = (y.T @ y) / (self.args.batch_size - 1)
+        cov_loss = off_diagonal(cov_x).pow_(2).sum().div(
+            self.num_features
+        ) + off_diagonal(cov_y).pow_(2).sum().div(self.num_features)
 
-    if args.aug_policy == "standard":
-        if args.dataset == "voc":
-            augment_policy = augment.VOC_augment(args.aug_policy, aug_strength = args.aug_strength)
-        else:
-            raise ValueError(f'Unimplemented dataset"{args.dataset}"')
-    else:
-        raise ValueError(f'Unimplemented augment policy"{args.aug_policy}"')
+        loss = (
+            self.args.sim_coeff * repr_loss
+            + self.args.std_coeff * std_loss
+            + self.args.cov_coeff * cov_loss
+        )
+        return loss
 
-    # add options for optimizer
-    optimizer = torch.optim.SGD(
-        params, lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 
-    args.lr_scheduler = args.lr_scheduler.lower()
-    if args.lr_scheduler == 'multisteplr':
-        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.lr_steps, gamma=args.lr_gamma)
-    elif args.lr_scheduler == 'cosineannealinglr':
-        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
-    else:
-        raise RuntimeError("Invalid lr scheduler '{}'. Only MultiStepLR and CosineAnnealingLR "
-                           "are supported.".format(args.lr_scheduler))
+def Projector(args, embedding):
+    mlp_spec = f"{embedding}-{args.mlp}"
+    layers = []
+    f = list(map(int, mlp_spec.split("-")))
+    for i in range(len(f) - 2):
+        layers.append(nn.Linear(f[i], f[i + 1]))
+        layers.append(nn.BatchNorm1d(f[i + 1]))
+        layers.append(nn.ReLU(True))
+    layers.append(nn.Linear(f[-2], f[-1], bias=False))
+    return nn.Sequential(*layers)
 
-    if args.resume:
-        checkpoint = torch.load(args.resume, map_location='cpu')
-        model_without_ddp.load_state_dict(checkpoint['model'])
-        optimizer.load_state_dict(checkpoint['optimizer'])
-        lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
-        args.start_epoch = checkpoint['epoch'] + 1
 
-    print("Start training")
-    start_time = time.time()
-    for epoch in range(args.start_epoch, args.epochs):
-        if args.distributed:
-            train_sampler.set_epoch(epoch)
-        train_one_epoch(model, optimizer, data_loader, device, epoch, args.print_freq, loss_dict, loss_coeff, augment_policy, args.framework)
-        lr_scheduler.step()
-        if (epoch + 1) % args.save_freq == 0:
-            if args.output_dir:
-                checkpoint = {
-                    'model': model_without_ddp.state_dict(),
-                    'optimizer': optimizer.state_dict(),
-                    'lr_scheduler': lr_scheduler.state_dict(),
-                    'args': args,
-                    'epoch': epoch,
-                    'loss_coeff': loss_coeff
-                }
-                utils.save_on_master(
-                    checkpoint,
-                    os.path.join(args.output_dir, 'model_{}.pth'.format(epoch + 1)))
-                utils.save_on_master(
-                    checkpoint,
-                    os.path.join(args.output_dir, 'checkpoint.pth'))
+def exclude_bias_and_norm(p):
+    return p.ndim == 1
 
-    total_time = time.time() - start_time
-    total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-    print('Training time {}'.format(total_time_str))
+
+def off_diagonal(x):
+    n, m = x.shape
+    assert n == m
+    return x.flatten()[:-1].view(n - 1, n + 1)[:, 1:].flatten()
+
+
+class LARS(optim.Optimizer):
+    def __init__(
+        self,
+        params,
+        lr,
+        weight_decay=0,
+        momentum=0.9,
+        eta=0.001,
+        weight_decay_filter=None,
+        lars_adaptation_filter=None,
+    ):
+        defaults = dict(
+            lr=lr,
+            weight_decay=weight_decay,
+            momentum=momentum,
+            eta=eta,
+            weight_decay_filter=weight_decay_filter,
+            lars_adaptation_filter=lars_adaptation_filter,
+        )
+        super().__init__(params, defaults)
+
+    @torch.no_grad()
+    def step(self):
+        for g in self.param_groups:
+            for p in g["params"]:
+                dp = p.grad
+
+                if dp is None:
+                    continue
+
+                if g["weight_decay_filter"] is None or not g["weight_decay_filter"](p):
+                    dp = dp.add(p, alpha=g["weight_decay"])
+
+                if g["lars_adaptation_filter"] is None or not g[
+                    "lars_adaptation_filter"
+                ](p):
+                    param_norm = torch.norm(p)
+                    update_norm = torch.norm(dp)
+                    one = torch.ones_like(param_norm)
+                    q = torch.where(
+                        param_norm > 0.0,
+                        torch.where(
+                            update_norm > 0, (g["eta"] * param_norm / update_norm), one
+                        ),
+                        one,
+                    )
+                    dp = dp.mul(q)
+
+                param_state = self.state[p]
+                if "mu" not in param_state:
+                    param_state["mu"] = torch.zeros_like(p)
+                mu = param_state["mu"]
+                mu.mul_(g["momentum"]).add_(dp)
+
+                p.add_(mu, alpha=-g["lr"])
+
+
+def batch_all_gather(x):
+    x_list = FullGatherLayer.apply(x)
+    return torch.cat(x_list, dim=0)
+
+
+class FullGatherLayer(torch.autograd.Function):
+    """
+    Gather tensors from all process and support backward propagation
+    for the gradients across processes.
+    """
+
+    @staticmethod
+    def forward(ctx, x):
+        output = [torch.zeros_like(x) for _ in range(dist.get_world_size())]
+        dist.all_gather(output, x)
+        return tuple(output)
+
+    @staticmethod
+    def backward(ctx, *grads):
+        all_gradients = torch.stack(grads)
+        dist.all_reduce(all_gradients)
+        return all_gradients[dist.get_rank()]
+
+
+def handle_sigusr1(signum, frame):
+    os.system(f'scontrol requeue {os.environ["SLURM_JOB_ID"]}')
+    exit()
+
+
+def handle_sigterm(signum, frame):
+    pass
 
 
 if __name__ == "__main__":
-    args = get_args_parser().parse_args()
+    parser = argparse.ArgumentParser('VICReg training script', parents=[get_arguments()])
+    args = parser.parse_args()
     main(args)
