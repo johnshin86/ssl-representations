@@ -24,8 +24,6 @@ class BarlowTwinsLoss(_Loss):
     def __init__(self, expander_output: int):
         super().__init__()
         self.bn = torch.nn.BatchNorm1d(expander_output, affine = False)
-        self.off_diag_coef = off_diag_coef
-
 
     def forward(self, z_a: Tensor, z_b: Tensor) -> Tensor:
 
