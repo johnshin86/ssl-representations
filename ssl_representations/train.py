@@ -15,7 +15,9 @@ import torchvision.datasets as datasets
 import augmentations as aug
 from distributed import init_distributed_mode
 
-import resnet
+import engine
+
+# This train.py file is modified from the vicreg training file at: https://github.com/facebookresearch/vicreg
 
 
 def get_arguments():
@@ -71,7 +73,7 @@ def get_arguments():
 
 
 def main(args):
-    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.benchmark = True # auto-tuner to find the best algorithm for hardware. Good for when input sizes do not vary. 
     init_distributed_mode(args)
     print(args)
     gpu = torch.device(args.device)

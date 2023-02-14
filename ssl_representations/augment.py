@@ -36,7 +36,7 @@ class VOC_preprocess:
                     T.Resize((224, 224))
             ])
         else:
-            raise ValueError(f'Data preprocess type "{self.data_preprocess}" is unknown.')
+            raise NotImplementedError(f'Data preprocess type "{self.data_preprocess}" is unknown.')
 
     def __call__(self, img):
         return self.transforms(img)
@@ -103,10 +103,10 @@ class VOC_augment:
                     ])
 
             else:
-                raise ValueError(f'Unknown augmentation strength "{aug_strength}"')                
+                raise NotImplementedError(f'Unknown augmentation strength "{aug_strength}"')                
 
         else:
-            raise ValueError(f'Unknown data augmentation policy "{aug_policy}"')
+            raise NotImplementedError(f'Unknown data augmentation policy "{aug_policy}"')
 
     def __call__(self, img):
         return self.transforms(img)
