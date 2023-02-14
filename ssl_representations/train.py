@@ -7,6 +7,9 @@ The default hyperparameters are tuned for training on 8 gpus and 2 images per gp
 If you use different number of gpus, the learning rate should be changed to 0.02/8*$NGPU.
 """
 
+#Need to refactor. 
+
+
 import datetime
 import os
 import time
