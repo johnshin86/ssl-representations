@@ -4,7 +4,6 @@ import torch.distributed as dist
 
 # Taken from the distributed.py file at https://github.com/facebookresearch/vicreg.
 
-
 def setup_for_distributed(is_master):
     """
     This function disables printing when not in master process

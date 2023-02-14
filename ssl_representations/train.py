@@ -12,12 +12,12 @@ from torch import nn, optim
 import torch.distributed as dist
 import torchvision.datasets as datasets
 
-import augmentations as aug
+import augment as aug
 from distributed import init_distributed_mode
 
 import engine
 
-# This train.py file is modified from the vicreg training file at: https://github.com/facebookresearch/vicreg
+# This train.py file is modified from the vicreg training file at: https://github.com/facebookresearch/vicreg/blob/main/main_vicreg.py
 
 
 def get_arguments():
@@ -39,7 +39,7 @@ def get_arguments():
     parser.add_argument("--mlp", default="8192-8192-8192",
                         help='Size and number of layers of the MLP expander head')
 
-    # Optim
+    # Optimization
     parser.add_argument("--epochs", type=int, default=100,
                         help='Number of epochs')
     parser.add_argument("--batch-size", type=int, default=2048,
@@ -78,6 +78,7 @@ def main(args):
     print(args)
     gpu = torch.device(args.device)
 
+    #prints stats file to rank 0
     if args.rank == 0:
         args.exp_dir.mkdir(parents=True, exist_ok=True)
         stats_file = open(args.exp_dir / "stats.txt", "a", buffering=1)
