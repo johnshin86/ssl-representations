@@ -1,49 +1,40 @@
-import torch
-from torch import Tensor
-from torch.nn.modules.loss import _Loss 
+from torch import nn
+import torchvision
 
 
-class BarlowTwinsLoss(_Loss):
-    r"""The Barlow Twins loss. This is a subclass of the internal loss class used
-    for the pytorch non-weighted losses, _Loss. It is intialized in the same way that the internal
-    non-weighted losses are, to be consistent with their internal losses. 
-
-    The forward method of the class computes the cross-correlation matrix of the two representations over the batch.
-    The on-diagonal and off-diagonal elements of the cross-correlation matrix are returned separately.
-
-    Returns
-    -------
-    on_diag: torch.Tensor
-
-        Diagonal elements of the cross-correlation matrix.
-
-    off_diag: torch.Tensor
-
-        Off-diagonal elements of the cross-correlation matrix.
-    """
-    def __init__(self, expander_output: int, batch_size: int, device = "cuda"):
+class BarlowTwins(nn.Module):
+    def __init__(self, args):
         super().__init__()
-        self.bn = torch.nn.BatchNorm1d(expander_output, affine = False, device=device)
-        self.bs = batch_size
+        self.args = args
+        self.backbone = torchvision.models.resnet50(zero_init_residual=True)
+        self.backbone.fc = nn.Identity()
 
-    def forward(self, z_a: Tensor, z_b: Tensor) -> Tensor:
+        # projector
+        sizes = [2048] + list(map(int, args.projector.split('-')))
+        layers = []
+        for i in range(len(sizes) - 2):
+            layers.append(nn.Linear(sizes[i], sizes[i + 1], bias=False))
+            layers.append(nn.BatchNorm1d(sizes[i + 1]))
+            layers.append(nn.ReLU(inplace=True))
+        layers.append(nn.Linear(sizes[-2], sizes[-1], bias=False))
+        self.projector = nn.Sequential(*layers)
 
-        #create cross-correlation matrix over batch
-        c = self.bn(z_a).T @ self.bn(z_b)
-        
-        # normalize by batch_size
-        c.div_(self.bs)
+        # normalization layer for the representations z1 and z2
+        self.bn = nn.BatchNorm1d(sizes[-1], affine=False)
 
-        #torch.distributed.all_reduce(c)
+    def forward(self, y1, y2):
+        z1 = self.projector(self.backbone(y1))
+        z2 = self.projector(self.backbone(y2))
+
+        # empirical cross-correlation matrix
+        c = self.bn(z1).T @ self.bn(z2)
+
+        # sum the cross-correlation matrix between all gpus
+        c.div_(self.args.batch_size)
+        torch.distributed.all_reduce(c)
 
         on_diag = torch.diagonal(c).add_(-1).pow_(2).sum()
-        off_diag = self._off_diagonal(c).pow_(2).sum()
-
-        return on_diag, off_diag
-
-    def _off_diagonal(self, x):
-        # return a flattened view of the off-diagonal elements of a square matrix
-        n, m = x.shape
-        assert n == m
-        return x.flatten()[:-1].view(n - 1, n + 1)[:, 1:].flatten()
+        off_diag = off_diagonal(c).pow_(2).sum()
+        loss = on_diag + self.args.lambd * off_diag
+        return loss
 
