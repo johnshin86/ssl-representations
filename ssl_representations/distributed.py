@@ -2,7 +2,7 @@ import torch
 import os
 import torch.distributed as dist
 
-# Taken from the distributed.py file at https://github.com/facebookresearch/vicreg.
+# Taken from the distributed.py file at https://github.com/facebookresearch/vicreg/blob/main/distributed.py
 
 def setup_for_distributed(is_master):
     """

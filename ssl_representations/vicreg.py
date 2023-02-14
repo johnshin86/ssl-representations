@@ -4,82 +4,57 @@ from torch.nn.modules.loss import _Loss
 from torch.nn.functional import relu
 
 
-class VarianceLoss(_Loss):
-	r"""The variance loss, or the 'V' in VIC. This is a subclass of the internal loss class used
-	for the pytorch non-weighted losses, _Loss. It is intialized in the same way that the internal
-	non-weighted losses are, to be consistent with their internal losses. 
+class VICReg(nn.Module):
+    def __init__(self, args):
+        super().__init__()
+        self.args = args
+        self.num_features = int(args.mlp.split("-")[-1])
+        self.backbone, self.embedding = resnet.__dict__[args.arch](
+            zero_init_residual=True
+        )
+        self.projector = Projector(args, self.embedding)
 
-	The forward method of the class computes the standard deviation of the two representations
-	over the batch dimension, and uses this in the hinge loss to encourage the standard deviations
-	to be close to gamma, which is set to one. The mean is then taken over the encoding dimensions. 
+    def forward(self, x, y):
+        x = self.projector(self.backbone(x))
+        y = self.projector(self.backbone(y))
 
-	Let Z = [z_1, ..., z_n] be a batch of n representations, each of which is in R^d. 
-	Let z^i denote the encoding dimensions, where i \in {1, ..., d}.
+        repr_loss = F.mse_loss(x, y)
 
-	The variance loss is computed as:
+        x = torch.cat(FullGatherLayer.apply(x), dim=0)
+        y = torch.cat(FullGatherLayer.apply(y), dim=0)
+        x = x - x.mean(dim=0)
+        y = y - y.mean(dim=0)
 
-	v(Z) = \frac{1}{d} \sum_{j=1}^d \max(0, \gamma - S(z^j, \epsilon))
+        std_x = torch.sqrt(x.var(dim=0) + 0.0001)
+        std_y = torch.sqrt(y.var(dim=0) + 0.0001)
+        std_loss = torch.mean(F.relu(1 - std_x)) / 2 + torch.mean(F.relu(1 - std_y)) / 2
 
-	where S(x, \epsilon) = \sqrt(\Var(x) + \epsilon), where the variance is taken over the batch. 
-	"""
-	def __init__(self, size_average = None, reduce = None, reduction: str = 'mean', gamma: float = 1.0, eps: float = 1e-4) -> None:
-		super(VarianceLoss, self).__init__(size_average, reduce, reduction)
-		self.gamma = gamma
-		self.eps = eps
+        cov_x = (x.T @ x) / (self.args.batch_size - 1)
+        cov_y = (y.T @ y) / (self.args.batch_size - 1)
+        cov_loss = off_diagonal(cov_x).pow_(2).sum().div(
+            self.num_features
+        ) + off_diagonal(cov_y).pow_(2).sum().div(self.num_features)
 
-	def forward(self, z_a: Tensor, z_b: Tensor) -> Tensor:
-		std_z_a = torch.sqrt(z_a.var(dim = 0) + self.eps) #compute variance over batch dimension
-		std_z_b = torch.sqrt(z_b.var(dim = 0) + self.eps)
+        loss = (
+            self.args.sim_coeff * repr_loss
+            + self.args.std_coeff * std_loss
+            + self.args.cov_coeff * cov_loss
+        )
+        return loss
 
-		return torch.mean(relu(self.gamma - std_z_a)) + torch.mean(relu(self.gamma - std_z_b))
 
-class CovarianceLoss(_Loss):
-	r"""The covariance loss, or the 'C'in VIC. This is a subclass of the internal loss class used 
-	for the pytorch non-weighted losses, _Loss. It is intialized in the same way that the internal
-	non-weighted losses are, to be consistent with their internal losses. 
+def Projector(args, embedding):
+    mlp_spec = f"{embedding}-{args.mlp}"
+    layers = []
+    f = list(map(int, mlp_spec.split("-")))
+    for i in range(len(f) - 2):
+        layers.append(nn.Linear(f[i], f[i + 1]))
+        layers.append(nn.BatchNorm1d(f[i + 1]))
+        layers.append(nn.ReLU(True))
+    layers.append(nn.Linear(f[-2], f[-1], bias=False))
+    return nn.Sequential(*layers)
 
-	The forward method of the class computes the squared sum of the off-diagonal elements
-	of the feature covariance matrix of the representation. First, the representation is centered
-	using the mean over the batch. The feature covariance matrix is computed using the outer product
-	of the deviation.
-
-	Let Z = [z_1, ..., z_n] by a batch of n representations, each of which is in R^d.
-
-	The feature covariance is computed as:
-
-	Cov(Z) = \frac{1}{n} \sum_{i = 1}^n (z_i - \bar{z})(z_i - \bar{z})^T,   where \bar{z} = \frac{1}{n} \sum_{i = 1}^n z_i
-
-	The loss is then computed as:
-
-	c(Z) = \frac{1}{d} \sum_{i \neq j}[Cov(Z)]^2_{i, j}
-	"""
-	def __init__(self, size_average = None, reduce = None, reduction: str = 'mean') -> None:
-		super(CovarianceLoss, self).__init__(size_average, reduce, reduction)
-
-	def forward(self, z_a: Tensor, z_b: Tensor) -> Tensor:
-		batch_size, D = z_a.shape
-
-		z_a = z_a - z_a.mean(dim = 0)
-		z_b = z_b - z_b.mean(dim = 0)
-
-		cov_z_a = (z_a.t() @ z_a) / (batch_size - 1) #compute feature covariance over batch
-		cov_z_b = (z_b.t() @ z_b) / (batch_size - 1)
-
-		return off_diagonal(cov_z_a).pow_(2).sum() / D + off_diagonal(cov_z_b).pow_(2).sum() / D		 
-
-def off_diagonal(M):
-	r"""Clones a tensor, zero's it diagonal in-place, and returns the clone.
-
-	Parameters
-	----------
-
-	M: torch.Tensor
-		A square matrix for which the off-diagonals will be returned.
-
-	O: torch.Tensor
-		A square matrix in which the main diagonal has been zero'd.
-	"""
-	O = M.clone() 
-	O.diagonal(dim1 = -1, dim2 = -2).zero_() #get diagonal and set to zero
-	return O
-
+def off_diagonal(x):
+    n, m = x.shape
+    assert n == m
+    return x.flatten()[:-1].view(n - 1, n + 1)[:, 1:].flatten()
