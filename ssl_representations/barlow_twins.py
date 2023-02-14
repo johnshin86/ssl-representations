@@ -21,9 +21,10 @@ class BarlowTwinsLoss(_Loss):
 
         Off-diagonal elements of the cross-correlation matrix.
     """
-    def __init__(self, expander_output: int):
+    def __init__(self, expander_output: int, batch_size: int, device = "cuda"):
         super().__init__()
-        self.bn = torch.nn.BatchNorm1d(expander_output, affine = False)
+        self.bn = torch.nn.BatchNorm1d(expander_output, affine = False, device=device)
+        self.bs = batch_size
 
     def forward(self, z_a: Tensor, z_b: Tensor) -> Tensor:
 
@@ -31,16 +32,16 @@ class BarlowTwinsLoss(_Loss):
         c = self.bn(z_a).T @ self.bn(z_b)
         
         # normalize by batch_size
-        c.div_(self.args['batch_size'])
+        c.div_(self.bs)
 
-        torch.distributed.all_reduce(c)
+        #torch.distributed.all_reduce(c)
 
         on_diag = torch.diagonal(c).add_(-1).pow_(2).sum()
-        off_diag = _off_diagonal(c).pow_(2).sum()
+        off_diag = self._off_diagonal(c).pow_(2).sum()
 
         return on_diag, off_diag
 
-    def _off_diagonal(x):
+    def _off_diagonal(self, x):
         # return a flattened view of the off-diagonal elements of a square matrix
         n, m = x.shape
         assert n == m

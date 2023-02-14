@@ -225,7 +225,7 @@ def main(args):
         loss_coeff["nu"] = 1.0
 
     elif args.framework == 'barlowtwins':
-        loss_dict["barlowtwins"] = barlow_twins.BarlowTwinsLoss(expander_output=args.expander_output)
+        loss_dict["barlowtwins"] = barlow_twins.BarlowTwinsLoss(expander_output=args.expander_output, batch_size = args.batch_size)
         loss_coeff["lambda"] = args.off_diag_coef
 
     else:
