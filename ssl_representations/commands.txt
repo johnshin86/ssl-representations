@@ -1,3 +1,0 @@
-python train.py --lr 0.01
-python train.py --aug-strength "noisy_strong" --lr-scheduler "multisteplr"
-python train.py --aug-strength "weak" --lr-scheduler "multisteplr"
