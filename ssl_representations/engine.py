@@ -92,7 +92,7 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq, lo
             "L_offdiag": L_offdiag
             }
         else:
-            raise ValueError(f'Framework "{framework}" not implemented.')
+            raise NotImplementedError(f'Framework "{framework}" not implemented.')
 
         if not math.isfinite(loss_value):
             print("Loss is {}, stopping training".format(loss_value))

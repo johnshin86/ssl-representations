@@ -8,7 +8,18 @@ class BarlowTwinsLoss(_Loss):
     for the pytorch non-weighted losses, _Loss. It is intialized in the same way that the internal
     non-weighted losses are, to be consistent with their internal losses. 
 
-    The forward method of the class computes the cross-correlation matrix of the two representations over the batch
+    The forward method of the class computes the cross-correlation matrix of the two representations over the batch.
+    The on-diagonal and off-diagonal elements of the cross-correlation matrix are returned separately.
+
+    Returns
+    -------
+    on_diag: torch.Tensor
+
+        Diagonal elements of the cross-correlation matrix.
+
+    off_diag: torch.Tensor
+
+        Off-diagonal elements of the cross-correlation matrix.
     """
     def __init__(self, expander_output: int):
         super().__init__()
@@ -24,7 +35,6 @@ class BarlowTwinsLoss(_Loss):
         # normalize by batch_size
         c.div_(self.args['batch_size'])
 
-        #may need to comment out
         torch.distributed.all_reduce(c)
 
         on_diag = torch.diagonal(c).add_(-1).pow_(2).sum()
