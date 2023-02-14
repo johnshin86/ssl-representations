@@ -1,8 +1,8 @@
 # SSL Representations
 
-This library implements many recent SSL methods. 
+This library implements many recent vision SSL methods. 
 
-Self-supervised learning in vision is a function of the augmentation policy, the inductive bias of the architecture,
+Self-supervised learning in vision is an interplay of the augmentation policy, the inductive bias of the architecture,
 and the interactions across samples induced by the loss function. 
 
 # Methods
