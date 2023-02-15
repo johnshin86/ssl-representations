@@ -15,7 +15,11 @@ import torchvision.datasets as datasets
 import augment as aug
 from distributed import init_distributed_mode
 
-import optim.optimizers 
+
+from optim.optimizers import LARS
+from utils import exclude_bias_and_norm
+from vicreg import VICReg
+
 
 # This train.py file is modified from the vicreg training file at: https://github.com/facebookresearch/vicreg/blob/main/main_vicreg.py
 
@@ -24,7 +28,7 @@ def get_arguments():
     parser = argparse.ArgumentParser(description="Pretrain a model with different SSL methods.", add_help=False)
 
     # Data
-    parser.add_argument("--data-dir", type=Path, default="/path/to/imagenet", required=True,
+    parser.add_argument("--data-dir", type=Path, default="/media/john/EEA Drive 1/datasets/imagenet-object-localization-challenge/ILSVRC/Data/CLS-LOC/",
                         help='Path to the image net dataset')
 
     # Checkpoints
@@ -50,8 +54,15 @@ def get_arguments():
                         help='Weight decay')
 
     # Loss
-    parser.add_argument("--coeffs", nargs="+", type=float, default=[25.0, 25.0, 1.0], required = True,
-                        help='Coefficients for the SSL loss function')
+    # parser.add_argument("--coeffs", nargs="+", type=float, default=[25.0, 25.0, 1.0], required = True,
+    #                     help='Coefficients for the SSL loss function')
+
+    parser.add_argument("--sim-coeff", type=float, default=25.0,
+                        help='Invariance regularization loss coefficient')
+    parser.add_argument("--std-coeff", type=float, default=25.0,
+                        help='Variance regularization loss coefficient')
+    parser.add_argument("--cov-coeff", type=float, default=1.0,
+                        help='Covariance regularization loss coefficient')
 
     # Running
     parser.add_argument("--num-workers", type=int, default=10)

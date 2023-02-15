@@ -1,4 +1,5 @@
 from torch import optim
+import torch
 
 class LARS(optim.Optimizer):
     def __init__(
