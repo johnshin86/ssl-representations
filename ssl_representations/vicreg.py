@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from utils import FullGatherLayer, off_diagonal
 import resnet
 from projector import Projector
+import timm
 
 
 
@@ -12,9 +13,13 @@ class VICReg(nn.Module):
         super().__init__()
         self.args = args
         self.num_features = int(args.mlp.split("-")[-1])
-        self.backbone, self.embedding = resnet.__dict__[args.arch](
-            zero_init_residual=True
-        )
+
+        model = timm.create_model(args.arch, zero_init_last=True)
+        self.embedding = model.fc.in_features
+        
+        model.fc = nn.Identity()
+        self.backbone = model
+
         self.projector = Projector(args, self.embedding)
 
     def forward(self, x, y):

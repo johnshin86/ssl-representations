@@ -4,6 +4,8 @@ from torch import nn
 from utils import off_diagonal
 from projector import Projector
 import resnet
+import timm
+
 
 import torchvision
 
@@ -12,9 +14,11 @@ class BarlowTwins(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.args = args
-        self.backbone, self.embedding = resnet.__dict__[args.arch](
-            zero_init_residual=True
-        )
+        model = timm.create_model(args.arch, zero_init_last=True)
+        self.embedding = model.fc.in_features
+        
+        model.fc = nn.Identity()
+        self.backbone = model
 
         self.projector = Projector(args, self.embedding)
         # normalization layer for the representations z1 and z2
