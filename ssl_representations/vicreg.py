@@ -15,9 +15,12 @@ class VICReg(nn.Module):
         self.args = args
         self.num_features = int(args.mlp.split("-")[-1])
 
-        model = timm.create_model(args.arch, zero_init_last=True)
-        self.embedding = model.fc.in_features
+        if "resnet" in args.arch:
+            model = timm.create_model(args.arch, zero_init_last=True)
+        else:
+            model = timm.create_model(args.arch)
         
+        self.embedding = model.fc.in_features
         model.fc = nn.Identity()
         self.backbone = model
 
