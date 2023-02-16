@@ -19,6 +19,7 @@ from distributed import init_distributed_mode
 from optim.optimizers import LARS
 from utils import exclude_bias_and_norm
 from vicreg import VICReg
+from barlow_twins import BarlowTwins
 
 
 # This train.py file is modified from the vicreg training file at: https://github.com/facebookresearch/vicreg/blob/main/main_vicreg.py

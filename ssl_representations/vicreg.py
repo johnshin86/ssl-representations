@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utils import FullGatherLayer
+from utils import FullGatherLayer, off_diagonal
 import resnet
+from project import Projector
 
 
 
@@ -44,19 +45,3 @@ class VICReg(nn.Module):
         )
         return loss
 
-
-def Projector(args, embedding):
-    mlp_spec = f"{embedding}-{args.mlp}"
-    layers = []
-    f = list(map(int, mlp_spec.split("-")))
-    for i in range(len(f) - 2):
-        layers.append(nn.Linear(f[i], f[i + 1]))
-        layers.append(nn.BatchNorm1d(f[i + 1]))
-        layers.append(nn.ReLU(True))
-    layers.append(nn.Linear(f[-2], f[-1], bias=False))
-    return nn.Sequential(*layers)
-
-def off_diagonal(x):
-    n, m = x.shape
-    assert n == m
-    return x.flatten()[:-1].view(n - 1, n + 1)[:, 1:].flatten()

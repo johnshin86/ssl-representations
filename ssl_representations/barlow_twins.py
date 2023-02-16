@@ -1,4 +1,6 @@
 from torch import nn
+from utils import off_diagonal
+
 import torchvision
 
 

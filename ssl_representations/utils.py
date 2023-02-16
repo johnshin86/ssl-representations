@@ -9,6 +9,12 @@ def batch_all_gather(x):
     x_list = FullGatherLayer.apply(x)
     return torch.cat(x_list, dim=0)
 
+def off_diagonal(x):
+    n, m = x.shape
+    assert n == m
+    return x.flatten()[:-1].view(n - 1, n + 1)[:, 1:].flatten()
+
+
 class FullGatherLayer(torch.autograd.Function):
     """
     Gather tensors from all process and support backward propagation
