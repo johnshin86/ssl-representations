@@ -69,6 +69,9 @@ def get_arguments():
     parser.add_argument("--cov-coeff", type=float, default=1.0,
                         help='Covariance regularization loss coefficient')
 
+    parser.add_argument("--lambd", type=float, default=0.0051,
+                        help='Off-diagonal coefficient for Barlow Twins')  
+
     # Running
     parser.add_argument("--num-workers", type=int, default=10)
     parser.add_argument('--device', default='cuda',
@@ -115,6 +118,8 @@ def main(args):
         model = VICReg(args).cuda(gpu)
     elif args.framework == "barlowtwins":
         model = BarlowTwins(args).cuda(gpu)
+
+
     model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
     model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[gpu])
     optimizer = LARS(
