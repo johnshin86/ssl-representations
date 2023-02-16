@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from utils import FullGatherLayer, off_diagonal
 import resnet
-from project import Projector
+from projector import Projector
 
 
 
