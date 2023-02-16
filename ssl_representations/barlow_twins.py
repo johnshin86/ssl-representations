@@ -24,7 +24,6 @@ class BarlowTwins(nn.Module):
         self.projector = Projector(args, self.rep_dim)
 
         # normalization layer for the representations z1 and z2
-        out_dim = list(map(int, args.mlp.split('-')))[-1]
         self.bn = nn.BatchNorm1d(self.embedding_dim, affine=False)
 
     def forward(self, y1, y2):

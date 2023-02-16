@@ -6,9 +6,7 @@ from projector import Projector
 
 import timm
 
-
-
-class BarlowTwins(nn.Module):
+class InfoNCE(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.args = args
