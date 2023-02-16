@@ -24,6 +24,7 @@ from barlow_twins import BarlowTwins
 
 # This train.py file is modified from the vicreg training file at: https://github.com/facebookresearch/vicreg/blob/main/main_vicreg.py
 
+# Think about removing resnet.py and just use torchvision models. 
 
 def get_arguments():
     parser = argparse.ArgumentParser(description="Pretrain a model with different SSL methods.", add_help=False)
