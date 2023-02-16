@@ -1,5 +1,6 @@
 from torch import nn
 from utils import off_diagonal
+from projector import Projector
 
 import torchvision
 
@@ -8,19 +9,11 @@ class BarlowTwins(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.args = args
-        self.backbone = torchvision.models.resnet50(zero_init_residual=True)
-        self.backbone.fc = nn.Identity()
+        self.backbone, self.embedding = resnet.__dict__[args.arch](
+            zero_init_residual=True
+        )
 
-        # projector
-        sizes = [2048] + list(map(int, args.projector.split('-')))
-        layers = []
-        for i in range(len(sizes) - 2):
-            layers.append(nn.Linear(sizes[i], sizes[i + 1], bias=False))
-            layers.append(nn.BatchNorm1d(sizes[i + 1]))
-            layers.append(nn.ReLU(inplace=True))
-        layers.append(nn.Linear(sizes[-2], sizes[-1], bias=False))
-        self.projector = nn.Sequential(*layers)
-
+        self.projector = Projector(args, self.embedding)
         # normalization layer for the representations z1 and z2
         self.bn = nn.BatchNorm1d(sizes[-1], affine=False)
 
