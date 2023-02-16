@@ -15,7 +15,7 @@ def off_diagonal(x):
     return x.flatten()[:-1].view(n - 1, n + 1)[:, 1:].flatten()
 
 
-# Need to study the difference between this and Barlow Twins all_reduce. 
+# Need to study the difference between the usage of this in VICReg and Barlow Twins all_reduce. 
 
 class FullGatherLayer(torch.autograd.Function):
     """

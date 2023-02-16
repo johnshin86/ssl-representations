@@ -11,20 +11,21 @@ class BarlowTwins(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.args = args
+        self.embedding_dim = int(args.mlp.split("-")[-1])
 
         if "resnet" in args.arch:
             model = timm.create_model(args.arch, zero_init_last=True)
         else:
             model = timm.create_model(args.arch)
         
-        self.embedding = model.fc.in_features
+        self.rep_dim = model.fc.in_features
         model.fc = nn.Identity()
         self.backbone = model
+        self.projector = Projector(args, self.rep_dim)
 
-        self.projector = Projector(args, self.embedding)
         # normalization layer for the representations z1 and z2
         out_dim = list(map(int, args.mlp.split('-')))[-1]
-        self.bn = nn.BatchNorm1d(out_dim, affine=False)
+        self.bn = nn.BatchNorm1d(self.embedding_dim, affine=False)
 
     def forward(self, y1, y2):
         z1 = self.projector(self.backbone(y1))
