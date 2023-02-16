@@ -28,6 +28,10 @@ from barlow_twins import BarlowTwins
 def get_arguments():
     parser = argparse.ArgumentParser(description="Pretrain a model with different SSL methods.", add_help=False)
 
+    # Framework
+    parser.add_argument("--framework", type=str, default="vicreg",
+                        help='Type of SSL framework to use.') 
+
     # Data
     parser.add_argument("--data-dir", type=Path, default="/media/john/EEA Drive 1/datasets/imagenet-object-localization-challenge/ILSVRC/Data/CLS-LOC/",
                         help='Path to the image net dataset')
@@ -107,7 +111,10 @@ def main(args):
         sampler=sampler,
     )
 
-    model = VICReg(args).cuda(gpu)
+    if args.framework == "vicreg":
+        model = VICReg(args).cuda(gpu)
+    elif args.framework == "barlowtwins":
+        model = BarlowTwins(args).cuda(gpu)
     model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
     model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[gpu])
     optimizer = LARS(
