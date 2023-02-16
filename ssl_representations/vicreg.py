@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from utils import FullGatherLayer, off_diagonal
-import resnet
 from projector import Projector
+
 import timm
 
 

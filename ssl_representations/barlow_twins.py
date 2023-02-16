@@ -1,19 +1,17 @@
 import torch
-
 from torch import nn
+
 from utils import off_diagonal
 from projector import Projector
-import resnet
+
 import timm
-
-
-import torchvision
 
 
 class BarlowTwins(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.args = args
+
         model = timm.create_model(args.arch, zero_init_last=True)
         self.embedding = model.fc.in_features
         

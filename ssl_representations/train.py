@@ -12,14 +12,12 @@ from torch import nn, optim
 import torch.distributed as dist
 import torchvision.datasets as datasets
 
-import timm
 
 import augment as aug
 from distributed import init_distributed_mode
-
-
 from optim.optimizers import LARS
 from utils import exclude_bias_and_norm
+
 from vicreg import VICReg
 from barlow_twins import BarlowTwins
 
