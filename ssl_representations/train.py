@@ -12,6 +12,8 @@ from torch import nn, optim
 import torch.distributed as dist
 import torchvision.datasets as datasets
 
+import timm
+
 import augment as aug
 from distributed import init_distributed_mode
 
