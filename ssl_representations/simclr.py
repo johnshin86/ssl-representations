@@ -6,7 +6,7 @@ from projector import Projector
 
 import timm
 
-class InfoNCE(nn.Module):
+class SimCLR(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.args = args
@@ -48,6 +48,8 @@ class InfoNCE(nn.Module):
         mask = torch.eye(true_sim.shape[0], dtype=torch.bool).to(self.args.device)
         true_sim = true_sim[~mask].view(true_sim.shape[0], -1)
         similarity_matrix = similarity_matrix[~mask].view(similarity_matrix.shape[0], -1)
+
+        # TODO: handle distributed computing.
 
         # each index is given it's positive similarity score
         positives = similarity_matrix[labels.bool()].view(labels.shape[0], -1)
