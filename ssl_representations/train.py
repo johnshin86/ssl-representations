@@ -127,7 +127,7 @@ def main(args):
         model = VICReg(args).cuda(gpu)
     elif args.framework == "barlowtwins":
         model = BarlowTwins(args).cuda(gpu)
-    elif args.framework == "simclr"
+    elif args.framework == "simclr":
         model = SimCLR(args).cuda(gpu)
 
 
