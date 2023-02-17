@@ -43,6 +43,11 @@ def get_arguments():
     parser.add_argument("--log-freq-time", type=int, default=60,
                         help='Print logs to the stats.txt file every [log-freq-time] seconds')
 
+    # Aug
+    parser.add_argument("--n_views", type=int, default=2,
+                        help='Number of augmentation views.')     
+
+
     # Model
     parser.add_argument("--arch", type=str, default="resnet50",
                         help='Architecture of the backbone encoder network')
@@ -72,6 +77,8 @@ def get_arguments():
 
     parser.add_argument("--lambd", type=float, default=0.0051,
                         help='Off-diagonal coefficient for Barlow Twins')  
+    parser.add_argument("--temp", type=float, default=0.07,
+                        help="Temperature for InfoNCE loss.")
 
     # Running
     parser.add_argument("--num-workers", type=int, default=10)
