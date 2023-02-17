@@ -21,20 +21,51 @@ class InfoNCE(nn.Module):
         model.fc = nn.Identity()
         self.backbone = model
         self.projector = Projector(args, self.rep_dim)
+        self.criterion = nn.CrossEntropyLoss()
+
 
 
     def forward(self, y1, y2):
         z1 = self.projector(self.backbone(y1))
         z2 = self.projector(self.backbone(y2))
 
-        # empirical cross-correlation matrix
-        c = self.bn(z1).T @ self.bn(z2)
+        z = torch.concat([z1, z2], dim=0)
 
-        # sum the cross-correlation matrix between all gpus
-        c.div_(self.args.batch_size)
-        torch.distributed.all_reduce(c)
+        assert args.n_views == 2, "Currently, only 2 views are supported for InfoNCE loss."
 
-        on_diag = torch.diagonal(c).add_(-1).pow_(2).sum()
-        off_diag = off_diagonal(c).pow_(2).sum()
-        loss = on_diag + self.args.lambd * off_diag
+        # create "true" similarity matrix
+ 		true_sim = torch.cat([torch.arange(self.args.batch_size) for i in range(self.args.n_views)], dim=0)
+        true_sim = (true_sim.unsqueeze(0) == true_sim.unsqueeze(1)).float()
+        true_sim = true_sim.to(self.args.device)
+
+        #normalize features
+        features = F.normalize(features, dim=1)
+
+        # construct similarity matrix
+        similarity_matrix = torch.matmul(features, features.T)
+
+        # delete diagonals and shift left
+        mask = torch.eye(true_sim.shape[0], dtype=torch.bool).to(self.args.device)
+        true_sim = true_sim[~mask].view(true_sim.shape[0], -1)
+        similarity_matrix = similarity_matrix[~mask].view(similarity_matrix.shape[0], -1)
+
+        # each index is given it's positive similarity score
+        positives = similarity_matrix[labels.bool()].view(labels.shape[0], -1)
+
+        # each index is given all 2 * (N - 2) dissimilarity scores
+        negatives = similarity_matrix[~labels.bool()].view(similarity_matrix.shape[0], -1)
+
+        # concat positive examples to index 0
+        logits = torch.cat([positives, negatives], dim=1)
+        # make index 0 the label for each sample
+        labels = torch.zeros(logits.shape[0], dtype=torch.long).to(self.args.device)
+        logits = logits / self.args.temperature
+
+        # At first glance, this does not look like the SimCLR loss. 
+        # Using cross-entropy loss in this manner will consider the 0 index the positive view,
+        # and the other n_view * (N - n_view) indices the negative views. 
+        # Hence we have -log [ exp(s_{i,j} / T) / ( \sum_{k != i} exp(s_{i, k}) ) ] as well
+        # as its symmetric counterpart j, i, for all i in [0, N]. 
+        loss = self.criterion(logits, labels)
+
         return loss
