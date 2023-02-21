@@ -35,8 +35,10 @@ def get_arguments():
                         help='Type of SSL framework to use.') 
 
     # Data
-    parser.add_argument("--data-dir", type=Path, default="/media/john/EEA Drive 1/datasets/imagenet-object-localization-challenge/ILSVRC/Data/CLS-LOC/",
-                        help='Path to the image net dataset')
+    parser.add_argument("--dataset", type=str, default="imagenet",
+                        help='The name of the dataset (default: imagenet).')
+    parser.add_argument("--data-dir", type=Path, default="",
+                        help='Path to the dataset')
 
     # Checkpoints
     parser.add_argument("--exp-dir", type=Path, default="./exp",
@@ -111,7 +113,11 @@ def main(args):
 
     transforms = aug.TrainTransform()
 
-    dataset = datasets.ImageFolder(args.data_dir / "train", transforms)
+    if args.dataset == "imagenet":
+        dataset = datasets.ImageFolder(args.data_dir / "train", transforms)
+    elif args.dataset == "cifar10":
+        dataset = datasets.CIFAR10(root = args.data_dir, transform = transforms)
+
     sampler = torch.utils.data.distributed.DistributedSampler(dataset, shuffle=True)
     assert args.batch_size % args.world_size == 0
     per_device_batch_size = args.batch_size // args.world_size
