@@ -25,12 +25,17 @@ class FullGatherLayer(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, x):
+        #create tensor to copy output to
         output = [torch.zeros_like(x) for _ in range(dist.get_world_size())]
+        #gather tensors x from all GPUs and write to list.
         dist.all_gather(output, x)
+        #return as tuple
         return tuple(output)
 
     @staticmethod
     def backward(ctx, *grads):
+        #stack gradients all gradients
         all_gradients = torch.stack(grads)
+        #reduce grads so all GPUs get the final result
         dist.all_reduce(all_gradients)
         return all_gradients[dist.get_rank()]
