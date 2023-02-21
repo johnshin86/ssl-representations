@@ -19,7 +19,7 @@ class VICReg(nn.Module):
             model = timm.create_model(args.arch, zero_init_last=True)
         else:
             model = timm.create_model(args.arch)
-        
+
         self.rep_dim = model.fc.in_features
         model.fc = nn.Identity()
         self.backbone = model
@@ -43,7 +43,7 @@ class VICReg(nn.Module):
         cov_x = (x.T @ x) / (self.args.batch_size - 1)
         cov_y = (y.T @ y) / (self.args.batch_size - 1)
         cov_loss = off_diagonal(cov_x).pow_(2).sum().div(
-            self.num_features
+            self.embedding_dim
         ) + off_diagonal(cov_y).pow_(2).sum().div(self.embedding_dim)
 
         loss = (
