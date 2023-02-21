@@ -31,7 +31,8 @@ class Solarization(object):
 
 
 class TrainTransform(object):
-    def __init__(self):
+    def __init__(self, args):
+        self.args = args
         self.transform = transforms.Compose(
             [
                 transforms.RandomResizedCrop(

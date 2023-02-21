@@ -111,7 +111,7 @@ def main(args):
         print(" ".join(sys.argv))
         print(" ".join(sys.argv), file=stats_file)
 
-    transforms = aug.TrainTransform()
+    transforms = aug.TrainTransform(args)
 
     if args.dataset == "imagenet":
         dataset = datasets.ImageFolder(args.data_dir / "train", transforms)
