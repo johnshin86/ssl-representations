@@ -38,4 +38,5 @@ class FullGatherLayer(torch.autograd.Function):
         all_gradients = torch.stack(grads)
         #reduce grads so all GPUs get the final result
         dist.all_reduce(all_gradients)
+        #return gradients to each process
         return all_gradients[dist.get_rank()]
