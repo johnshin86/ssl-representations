@@ -2,8 +2,9 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-from utils import off_diagonal
+from utils import off_diagonal, FullGatherLayer
 from projector import Projector
+
 
 import timm
 
@@ -24,18 +25,23 @@ class SimCLR(nn.Module):
 		self.projector = Projector(args, self.rep_dim)
 		self.criterion = nn.CrossEntropyLoss()
 
+		assert self.args.n_views == 2, "Currently, only 2 views are supported for InfoNCE loss."
+
 
 
 	def forward(self, y1, y2):
 		z1 = self.projector(self.backbone(y1))
 		z2 = self.projector(self.backbone(y2))
 
+		z1 = torch.cat(FullGatherLayer.apply(z1), dim=0)
+		z2 = torch.cat(FullGatherLayer.apply(z2), dim=0)
+
+		# z1, z2 should be args.batch_size * args.world_size
+
 		z = torch.concat([z1, z2], dim=0)
 
-		assert self.args.n_views == 2, "Currently, only 2 views are supported for InfoNCE loss."
-
 		# create "true" similarity matrix
-		true_sim = torch.cat([torch.arange(self.args.batch_size) for i in range(self.args.n_views)], dim=0)
+		true_sim = torch.cat([torch.arange(self.args.batch_size * args.world_size) for i in range(self.args.n_views)], dim=0)
 		true_sim = (true_sim.unsqueeze(0) == true_sim.unsqueeze(1)).float()
 		true_sim = true_sim.to(self.args.device)
 
