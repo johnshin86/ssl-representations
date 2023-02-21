@@ -121,6 +121,7 @@ def main(args):
         num_workers=args.num_workers,
         pin_memory=True,
         sampler=sampler,
+        drop_last = True,
     )
 
     if args.framework == "vicreg":
