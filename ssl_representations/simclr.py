@@ -37,12 +37,13 @@ class SimCLR(nn.Module):
 		z1 = torch.cat(FullGatherLayer.apply(z1), dim=0)
 		z2 = torch.cat(FullGatherLayer.apply(z2), dim=0)
 
-		# z1, z2 should be args.batch_size * args.world_size
+		# z1, z2 should be args.batch_size == per_device_batch_size * args.world_size
+		# i.e. args.batch_size is the total across GPUs
 
 		z = torch.concat([z1, z2], dim=0)
 
 		# create "true" similarity matrix
-		true_sim = torch.cat([torch.arange(self.args.batch_size * self.args.world_size) for i in range(self.args.n_views)], dim=0)
+		true_sim = torch.cat([torch.arange(self.args.batch_size) for i in range(self.args.n_views)], dim=0)
 		true_sim = (true_sim.unsqueeze(0) == true_sim.unsqueeze(1)).float()
 		true_sim = true_sim.to(self.args.device)
 
