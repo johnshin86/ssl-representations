@@ -33,6 +33,7 @@ class SimCLR(nn.Module):
 		z1 = self.projector(self.backbone(y1))
 		z2 = self.projector(self.backbone(y2))
 
+		#Collect reps from all GPUs
 		z1 = torch.cat(FullGatherLayer.apply(z1), dim=0)
 		z2 = torch.cat(FullGatherLayer.apply(z2), dim=0)
 
@@ -55,8 +56,6 @@ class SimCLR(nn.Module):
 		mask = torch.eye(true_sim.shape[0], dtype=torch.bool).to(self.args.device)
 		true_sim = true_sim[~mask].view(true_sim.shape[0], -1)
 		similarity_matrix = similarity_matrix[~mask].view(similarity_matrix.shape[0], -1)
-
-		# TODO: handle distributed computing.
 
 		# each index is given it's positive similarity score
 		positives = similarity_matrix[true_sim.bool()].view(true_sim.shape[0], -1)
