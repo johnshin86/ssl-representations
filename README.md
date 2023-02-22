@@ -14,3 +14,15 @@ but has been heavily modified.
 
 # Augmentation Policies
 
+- VICREG (default)
+
+# Datasets
+
+- ImageNet
+- CIFAR10
+
+# Models
+
+- timm
+
+
