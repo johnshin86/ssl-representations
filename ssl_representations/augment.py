@@ -45,7 +45,7 @@ class TrainTransform(object):
             
             self.resolution = 32
             self.mean = [0.49139968, 0.48215827 ,0.44653124]
-            self.std = [0.24703233 0.24348505 0.26158768]
+            self.std = [0.24703233, 0.24348505, 0.26158768]
 
         self.transform = transforms.Compose(
             [
