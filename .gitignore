@@ -2,6 +2,7 @@
 notebooks/
 ssl_representations/exp/
 commands.txt
+exp*/
 
 
 # Byte-compiled / optimized / DLL files
