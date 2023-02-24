@@ -5,10 +5,11 @@ import torch.nn.functional as F
 from utils import off_diagonal, FullGatherLayer
 from projector import Projector
 
-
 import timm
 
-class SimCLR(nn.Module):
+#from simclr import SimCLR
+
+class SimCLR_tau(nn.Module):
 	def __init__(self, args):
 		super().__init__()
 		self.args = args
