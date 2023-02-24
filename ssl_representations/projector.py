@@ -11,3 +11,5 @@ def Projector(args, embedding):
         layers.append(nn.ReLU(True))
     layers.append(nn.Linear(f[-2], f[-1], bias=False))
     return nn.Sequential(*layers)
+
+def Projector_tau(args, embedding):
