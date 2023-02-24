@@ -9,6 +9,8 @@ import timm
 
 #from simclr import SimCLR
 
+# Should we just add this to SimCLR?
+
 class SimCLR_tau(nn.Module):
 	def __init__(self, args):
 		super().__init__()
