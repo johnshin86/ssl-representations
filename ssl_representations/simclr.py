@@ -7,6 +7,8 @@ from projector import Projector
 
 import timm
 
+# add "boltzmann style" forward pass
+
 class SimCLR(nn.Module):
 	def __init__(self, args):
 		super().__init__()

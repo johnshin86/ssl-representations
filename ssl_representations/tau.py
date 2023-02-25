@@ -7,8 +7,7 @@ from projector import Projector
 
 import timm
 
-# Should we just add this to SimCLR?
-# I did. 
+# Add boltzmann style similarity to SimCLR?
 
 class TaU_SimCLR(object):
     
