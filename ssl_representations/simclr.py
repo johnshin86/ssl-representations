@@ -34,17 +34,23 @@ class SimCLR(nn.Module):
 		z1 = self.projector(self.backbone(y1))
 		z2 = self.projector(self.backbone(y2))
 
-		# should tau be collected before or after FullGatherLayer?
+		#Collect reps from all GPUs
+		z1 = torch.cat(FullGatherLayer.apply(z1), dim=0)
+		z2 = torch.cat(FullGatherLayer.apply(z2), dim=0)
+
 		if self.tau:
 			z1 = z1[:-1]
 			z2 = z2[:-1]
 
-			temp1 = z1[-1]
-			temp2 = z2[-1]
+			tau1 = torch.sigmoid(z1[-1].unsqueeze(1)) # batch_size, 1
+			tau2 = torch.sigmoid(z2[-1].unsqueeze(1)) # batch_size, 1
+			
+			tau = torch.concat([tau1, tau2], dim=0) # 2 * batch_size, 1
+			tau = tau.repeat(1, args.n_views * args.batch_size) # 2 * batch_size, 2 * batch_size
 
-		#Collect reps from all GPUs
-		z1 = torch.cat(FullGatherLayer.apply(z1), dim=0)
-		z2 = torch.cat(FullGatherLayer.apply(z2), dim=0)
+			# This should be a block matrix of
+			# | t1 | t1 |
+			# | t2 | t2 |
 
 		# z1, z2 should be args.batch_size == per_device_batch_size * args.world_size
 		# i.e. args.batch_size is the total across GPUs
@@ -61,6 +67,9 @@ class SimCLR(nn.Module):
 
 		# construct similarity matrix
 		similarity_matrix = torch.matmul(z, z.T)
+
+		if self.tau:
+			similarity_matrix = similarity_matrix * tau
 
 		# delete diagonals and shift left
 		mask = torch.eye(true_sim.shape[0], dtype=torch.bool).to(self.args.device)
