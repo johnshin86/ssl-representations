@@ -25,7 +25,7 @@ class SimCLR_tau(nn.Module):
 		self.rep_dim = model.fc.in_features
 		model.fc = nn.Identity()
 		self.backbone = model
-		self.projector = Projector(args, self.rep_dim)
+		self.projector = Projector_tau(args, self.rep_dim)
 		self.criterion = nn.CrossEntropyLoss()
 
 		assert self.args.n_views == 2, "Currently, only 2 views are supported for InfoNCE loss."
@@ -35,6 +35,8 @@ class SimCLR_tau(nn.Module):
 	def forward(self, y1, y2):
 		z1 = self.projector(self.backbone(y1))
 		z2 = self.projector(self.backbone(y2))
+
+		# break off tau here ... 
 
 		#Collect reps from all GPUs
 		z1 = torch.cat(FullGatherLayer.apply(z1), dim=0)
@@ -88,6 +90,7 @@ class SimCLR(object):
         super().__init__()
         self.outputs1 = F.normalize(outputs1, dim=1)
         self.outputs2 = F.normalize(outputs2, dim=1)
+        #t was likely found through linear search
         self.eps, self.t = eps, t
 
     def get_loss(self, split=False):
@@ -97,10 +100,17 @@ class SimCLR(object):
 
         # cov and sim: [2 * batch_size, 2 * batch_size]
         # neg: [2 * batch_size]
+
+        #compute gram matrix (not actually covariance!)
         cov = torch.mm(out, out.t().contiguous())
         sim = torch.exp(cov / self.t)
 
+        # This isn't fidelitous to the paper since it also contains the positive `view."
+        # But it is more fidelitous to the boltzman factor analogy
+        
+        # Create boolean mask, true on off-diagonals
         mask = ~torch.eye(n_samples, device=sim.device).bool()
+        # select all the negative samples and sum them
         neg = sim.masked_select(mask).view(n_samples, -1).sum(dim=-1)
 
         # Positive similarity, pos becomes [2 * batch_size]
@@ -145,6 +155,9 @@ class TaU_SimCLR(object):
         # cov and sim: [2 * batch_size, 2 * batch_size]
         # neg: [2 * batch_size]
         cov = torch.mm(loc, loc.t().contiguous())
+
+        # This is also incorrect, as it "interleaves" the temps instead of doing temp1*batch, temp2*batch 
+        # (2 * n_samples)
         var = temp.repeat(1, n_samples)
         sim = torch.exp((cov * var) / self.t)
 
