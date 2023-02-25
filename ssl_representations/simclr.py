@@ -39,11 +39,11 @@ class SimCLR(nn.Module):
 		z2 = torch.cat(FullGatherLayer.apply(z2), dim=0)
 
 		if self.tau:
-			z1 = z1[:-1]
-			z2 = z2[:-1]
+			z1 = z1[:,:-1]
+			z2 = z2[:,:-1]
 
 			tau1 = torch.sigmoid(z1[:,-1].unsqueeze(1)) # batch_size, 1
-			tau2 = torch.sigmoid(z2[:,-1].unsqueeze(1)) # batch_size, 1
+			tau2 = torch.sigmoid(z2[:,-1].unsqueeze(1)) # batch_size, 1 
 			
 			tau = torch.concat([tau1, tau2], dim=0) # 2 * batch_size, 1
 			tau = tau.repeat(1, self.args.n_views * self.args.batch_size) # 2 * batch_size, 2 * batch_size
