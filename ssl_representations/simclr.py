@@ -24,7 +24,7 @@ class SimCLR(nn.Module):
 		self.projector = Projector(args, self.rep_dim)
 		self.criterion = nn.CrossEntropyLoss()
 		
-		# self.tau = self.args.tau
+		self.tau = self.args.tau
 
 		assert self.args.n_views == 2, "Currently, only 2 views are supported for InfoNCE loss."
 
@@ -35,12 +35,12 @@ class SimCLR(nn.Module):
 		z2 = self.projector(self.backbone(y2))
 
 		# should tau be collected before or after FullGatherLayer?
-		# if self.tau:
-		# 	z1 = z1[:-1]
-		# 	z2 = z2[:-1]
+		if self.tau:
+			z1 = z1[:-1]
+			z2 = z2[:-1]
 
-		# 	temp1 = z1[-1]
-		# 	temp2 = z2[-1]
+			temp1 = z1[-1]
+			temp2 = z2[-1]
 
 		#Collect reps from all GPUs
 		z1 = torch.cat(FullGatherLayer.apply(z1), dim=0)
