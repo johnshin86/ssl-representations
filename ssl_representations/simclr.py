@@ -23,6 +23,8 @@ class SimCLR(nn.Module):
 		self.backbone = model
 		self.projector = Projector(args, self.rep_dim)
 		self.criterion = nn.CrossEntropyLoss()
+		
+		# self.tau = self.args.tau
 
 		assert self.args.n_views == 2, "Currently, only 2 views are supported for InfoNCE loss."
 
@@ -31,6 +33,14 @@ class SimCLR(nn.Module):
 	def forward(self, y1, y2):
 		z1 = self.projector(self.backbone(y1))
 		z2 = self.projector(self.backbone(y2))
+
+		# should tau be collected before or after FullGatherLayer?
+		# if self.tau:
+		# 	z1 = z1[:-1]
+		# 	z2 = z2[:-1]
+
+		# 	temp1 = z1[-1]
+		# 	temp2 = z2[-1]
 
 		#Collect reps from all GPUs
 		z1 = torch.cat(FullGatherLayer.apply(z1), dim=0)
@@ -64,8 +74,8 @@ class SimCLR(nn.Module):
 		negatives = similarity_matrix[~true_sim.bool()].view(similarity_matrix.shape[0], -1)
 
 		# concat positive examples to index 0
-		logits = torch.cat([positives, negatives], dim=1)
 		# make index 0 the label for each sample
+		logits = torch.cat([positives, negatives], dim=1)
 		labels = torch.zeros(logits.shape[0], dtype=torch.long).to(self.args.device)
 		logits = logits / self.args.temp
 
