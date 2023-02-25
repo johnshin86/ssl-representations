@@ -42,11 +42,11 @@ class SimCLR(nn.Module):
 			z1 = z1[:-1]
 			z2 = z2[:-1]
 
-			tau1 = torch.sigmoid(z1[-1].unsqueeze(1)) # batch_size, 1
-			tau2 = torch.sigmoid(z2[-1].unsqueeze(1)) # batch_size, 1
+			tau1 = torch.sigmoid(z1[:,-1].unsqueeze(1)) # batch_size, 1
+			tau2 = torch.sigmoid(z2[:,-1].unsqueeze(1)) # batch_size, 1
 			
 			tau = torch.concat([tau1, tau2], dim=0) # 2 * batch_size, 1
-			tau = tau.repeat(1, args.n_views * args.batch_size) # 2 * batch_size, 2 * batch_size
+			tau = tau.repeat(1, self.args.n_views * self.args.batch_size) # 2 * batch_size, 2 * batch_size
 
 			# This should be a block matrix of
 			# | t1 | t1 |
@@ -69,6 +69,7 @@ class SimCLR(nn.Module):
 		similarity_matrix = torch.matmul(z, z.T)
 
 		if self.tau:
+			#weight it with inverse temperature. 
 			similarity_matrix = similarity_matrix * tau
 
 		# delete diagonals and shift left

@@ -8,6 +8,7 @@ from projector import Projector
 import timm
 
 # Should we just add this to SimCLR?
+# I did. 
 
 class TaU_SimCLR(object):
     
