@@ -82,6 +82,7 @@ def get_arguments():
                         help='Off-diagonal coefficient for Barlow Twins')  
     parser.add_argument("--temp", type=float, default=0.07,
                         help="Temperature for InfoNCE loss.")
+    parser.add_argument("--tau", type=bool, default=False, help="Use temperature as uncertainy.")
 
     # Running
     parser.add_argument("--num-workers", type=int, default=10)
@@ -99,6 +100,8 @@ def get_arguments():
 
 
 def main(args):
+    if args.tau:
+        assert args.framework == 'simclr', "To use tau, the framework must be simclr."
     torch.backends.cudnn.benchmark = True # auto-tuner to find the best algorithm for hardware. Good for when input sizes do not vary. 
     init_distributed_mode(args)
     print(args)

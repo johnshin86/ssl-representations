@@ -5,7 +5,6 @@ import torch.nn.functional as F
 from utils import off_diagonal, FullGatherLayer
 from projector import Projector
 
-
 import timm
 
 class SimCLR(nn.Module):
