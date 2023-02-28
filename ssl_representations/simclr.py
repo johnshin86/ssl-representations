@@ -112,16 +112,13 @@ class SimCLR(nn.Module):
 
 			# create matrix where off-diagonals are all true
 			mask = ~torch.eye(self.sim_matrix_n, device=self.args.device).bool()
-			# select off-diagonals, reshape, and sum the negatives for each sample
+			# select off-diagonals, reshape
 			neg = similarity_matrix.masked_select(mask).view(self.sim_matrix_n, -1)
 
 			pos = torch.sum(z1 * z2, dim=-1)
 
-			if self.tau:
-				pos = pos * (tau1).squeeze(-1)
-
 			pos = torch.cat([pos, pos], dim=0)
-			logits = torch.cat([pos[:, None], neg], dim=1)
+			logits = torch.cat([pos.unsqueeze(-1), neg], dim=1)
 			labels = torch.zeros(logits.shape[0], dtype=torch.long).to(self.args.device)
 			logits = logits / self.args.temp
 
