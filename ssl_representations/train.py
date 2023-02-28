@@ -83,6 +83,7 @@ def get_arguments():
     parser.add_argument("--temp", type=float, default=0.07,
                         help="Temperature for InfoNCE loss.")
     parser.add_argument("--tau", type=bool, default=False, help="Use temperature as uncertainy.")
+    parser.add_argument("--boltzmann", type=bool, default=False, help="Use boltzmann style SimCLR, where the normalization also contains the i'th term.")
 
     # Running
     parser.add_argument("--num-workers", type=int, default=10)
