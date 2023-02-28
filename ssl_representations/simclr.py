@@ -60,8 +60,10 @@ class SimCLR(nn.Module):
 		# z1, z2 should be args.batch_size == per_device_batch_size * args.world_size
 		# i.e. args.batch_size is the total across GPUs
 
+		z1 = F.normalize(z1, dim=1)
+		z2 = F.normalize(z2, dim=1)
 		z = torch.concat([z1, z2], dim=0)
-		z = F.normalize(z, dim=1)
+		
 
 		if not self.boltzmann:
 
