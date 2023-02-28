@@ -29,7 +29,6 @@ class SimCLR(nn.Module):
 		self.tau = self.args.tau
 		self.boltzmann = self.args.boltzmann
 		self.sim_matrix_n = args.n_views * args.batch_size
-		self.eps = 1e-6
 
 		assert self.args.n_views == 2, "Currently, only 2 views are supported for InfoNCE loss."
 
@@ -62,6 +61,7 @@ class SimCLR(nn.Module):
 		# i.e. args.batch_size is the total across GPUs
 
 		z = torch.concat([z1, z2], dim=0)
+		z = F.normalize(z, dim=1)
 
 		if not self.boltzmann:
 
@@ -69,9 +69,6 @@ class SimCLR(nn.Module):
 			true_sim = torch.cat([torch.arange(self.args.batch_size) for i in range(self.args.n_views)], dim=0)
 			true_sim = (true_sim.unsqueeze(0) == true_sim.unsqueeze(1)).float()
 			true_sim = true_sim.to(self.args.device)
-
-			#normalize features
-			z = F.normalize(z, dim=1)
 
 			# construct similarity matrix
 			similarity_matrix = torch.matmul(z, z.T)
@@ -108,19 +105,20 @@ class SimCLR(nn.Module):
 
 			similarity_matrix = torch.matmul(z, z.T)
 
+			#tau training is unstable
+			#tau goes to 0 and hence we have log(exp(0)) = 0, division by zero
 			if self.tau:
-				similarity_matrix = (similarity_matrix * tau) 
+				similarity_matrix = similarity_matrix * tau 
 
 			# create matrix where off-diagonals are all true
 			mask = ~torch.eye(self.sim_matrix_n, device=self.args.device).bool()
 			# select off-diagonals, reshape
 			neg = similarity_matrix.masked_select(mask).view(self.sim_matrix_n, -1)
-			neg = neg + self.eps
 
 			pos = torch.sum(z1 * z2, dim=-1)
 
 			if self.tau:
-				pos = pos * (tau1).squeeze(-1)
+				pos = pos * tau1.squeeze(-1) 
 
 			pos = torch.cat([pos, pos], dim=0)
 			logits = torch.cat([pos.unsqueeze(-1), neg], dim=1)
