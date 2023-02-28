@@ -29,7 +29,6 @@ class SimCLR(nn.Module):
 		self.tau = self.args.tau
 		self.boltzmann = self.args.boltzmann
 		self.sim_matrix_n = args.n_views * args.batch_size
-		self.eps = 1e-6
 
 		assert self.args.n_views == 2, "Currently, only 2 views are supported for InfoNCE loss."
 
@@ -106,34 +105,26 @@ class SimCLR(nn.Module):
 
 		else:
 
-	        similarity_matrix = torch.matmul(z, z.T)
+			similarity_matrix = torch.matmul(z, z.T)
 
-	        if self.tau:
-	        	exp_sim = torch.exp((similarity_matrix * tau) / self.t)
-	        else:
-	        	exp_sim = torch.exp( similarity_matrix / self.t) 
+			if self.tau:
+				similarity_matrix = (similarity_matrix * tau) 
 
-	        # create matrix where off-diagonals are all true
-	        mask = ~torch.eye(self.sim_matrix_n, device=self.args.device)
-	        # select off-diagonals, reshape, and sum the negatives for each sample
-	        neg = exp_sim.masked_select(mask).view(self.sim_matrix_n, -1).sum(dim=-1)
+			# create matrix where off-diagonals are all true
+			mask = ~torch.eye(self.sim_matrix_n, device=self.args.device).bool()
+			# select off-diagonals, reshape, and sum the negatives for each sample
+			neg = similarity_matrix.masked_select(mask).view(self.sim_matrix_n, -1)
 
-	        pos = torch.sum(self.z1 * self.z2, dim=-1)
+			pos = torch.sum(z1 * z2, dim=-1)
 
-	        if self.tau:
-	        	pos = pos * (self.tau1 / self.t).squeeze(-1)
-	        else:
-	        	pos = (pos / self.t).squeeze(-1)
-	        pos = torch.exp(pos)
-	        pos = torch.cat([pos, pos], dim=0)
+			if self.tau:
+				pos = pos * (tau1).squeeze(-1)
 
-	        loss = -torch.log(pos / (neg + self.eps)).mean()
+			pos = torch.cat([pos, pos], dim=0)
+			logits = torch.cat([pos, neg], dim=1)
+			labels = torch.zeros(logits.shape[0], dtype=torch.long).to(self.args.device)
+			logits = logits / self.args.temp
 
-	        if not split:
-	            return loss
-	        else:
-	            # return overall loss, numerator, denominator
-	            return loss, pos, (neg + self.eps)
-
+			loss = self.criterion(logits, labels)
 
 		return loss
