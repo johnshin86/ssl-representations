@@ -29,6 +29,7 @@ class SimCLR(nn.Module):
 		self.tau = self.args.tau
 		self.boltzmann = self.args.boltzmann
 		self.sim_matrix_n = args.n_views * args.batch_size
+		self.eps = 1e-6
 
 		assert self.args.n_views == 2, "Currently, only 2 views are supported for InfoNCE loss."
 
@@ -114,6 +115,7 @@ class SimCLR(nn.Module):
 			mask = ~torch.eye(self.sim_matrix_n, device=self.args.device).bool()
 			# select off-diagonals, reshape
 			neg = similarity_matrix.masked_select(mask).view(self.sim_matrix_n, -1)
+			neg = neg + self.eps
 
 			pos = torch.sum(z1 * z2, dim=-1)
 
