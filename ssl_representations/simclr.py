@@ -121,7 +121,7 @@ class SimCLR(nn.Module):
 				pos = pos * (tau1).squeeze(-1)
 
 			pos = torch.cat([pos, pos], dim=0)
-			logits = torch.cat([pos, neg], dim=1)
+			logits = torch.cat([pos[:, None], neg], dim=1)
 			labels = torch.zeros(logits.shape[0], dtype=torch.long).to(self.args.device)
 			logits = logits / self.args.temp
 
