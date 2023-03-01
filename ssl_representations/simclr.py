@@ -7,7 +7,8 @@ from projector import Projector
 
 import timm
 
-# add "boltzmann style" forward pass
+# TODO: clean up and refactor. 
+# maybe add separate internal functions for boltzmann and simclr style?
 
 class SimCLR(nn.Module):
 	def __init__(self, args):
@@ -107,8 +108,7 @@ class SimCLR(nn.Module):
 
 			similarity_matrix = torch.matmul(z, z.T)
 
-			#tau training is unstable
-			#tau goes to 0 and hence we have log(exp(0)) = 0, division by zero
+			#tau training stabilizes over time. 
 			if self.tau:
 				similarity_matrix = similarity_matrix * tau 
 
