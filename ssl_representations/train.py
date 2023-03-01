@@ -25,8 +25,6 @@ from simclr import SimCLR
 
 # This train.py file is modified from the vicreg training file at: https://github.com/facebookresearch/vicreg/blob/main/main_vicreg.py
 
-# Think about removing resnet.py and just use torchvision models. 
-
 def get_arguments():
     parser = argparse.ArgumentParser(description="Pretrain a model with different SSL methods.", add_help=False)
 
@@ -68,8 +66,6 @@ def get_arguments():
                         help='Weight decay')
 
     # Loss
-    # parser.add_argument("--coeffs", nargs="+", type=float, default=[25.0, 25.0, 1.0], required = True,
-    #                     help='Coefficients for the SSL loss function')
 
     parser.add_argument("--sim-coeff", type=float, default=25.0,
                         help='Invariance regularization loss coefficient')
