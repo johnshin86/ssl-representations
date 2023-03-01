@@ -14,7 +14,7 @@ class MCInfoNCE(nn.Module):
 	as the mean direction and concentration parameter of the von Mises-Fisher (vMF) distribution. The distribution
 	is of the form:
 
-	f_p (\vx; \mu, k) = C_p(k)exp(k \mu^T \vx)
+	f_p (\vz; \mu, k) = C_p(k)exp(k \mu^T \vz)
 
 	Where k >= 0, ||\mu|| = 1, and C_p(k) is a normalization constant of the form:
 
@@ -23,7 +23,10 @@ class MCInfoNCE(nn.Module):
 	where I_{v} denotes the modified Bessel function of the first kind at order v. 
 
 	The SimCLR method essentially views the two views of a sample as positively correlated,
-	and the other sample in the batch as negatively correlated. 
+	and the other samples in the batch as negatively correlated. 
+
+	In MCInfoNCE, for a given input x, a latent vector z is drawn from Unif(z; S^{D-1}), where D is the latent dimension.
+	a positive view is drawn from vMF(z+; z, k_pos), and the negative views are drawn from Unif(z-, S^{D-1}).
 
 
 	"""
