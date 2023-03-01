@@ -33,18 +33,45 @@ class MCInfoNCE(nn.Module):
 
 	f(x) = f(g(z)) = \hat{z} = Rz, up to an orthogonal rotation R. 
 
+	However, the image x may be corrupted, blurred, low resolution, or otherwise underdetermined. 
+	In this case, the generative process g is non-injective and our encoder can only recover a set
+	of possible latents. g may also be stochastic. 
+
+	We can model g as the likelihood P(x|z). Instead of explicitly characterizing g by P(x|z)
+	we implicitly characterize it by its posterior P(z|x). 
+
 	We parameterize P(z|x) by a vMF distribution:
 
 	P(z|x) = C(k(x))exp(k(x)\mu(x)^Tz)
 
 	Suppose we have (x, x+, x-_1, ..., x-_M), or a reference sample x, a positive sample x^+,
 	and negative samples x-_1, ... , x-_M. We assume that these samples are generated from the  latents
-	z, z+, z-_1, ... , z-_M. The latent vector z is drawn from Unif(z; S^{D-1}), where D is the latent dimension.
-	a positive view is drawn from vMF(z+; z, k_pos), and the negative views are drawn from Unif(z-, S^{D-1}).
+	z, z+, z-_1, ... , z-_M. The latens are drawn:
+
+	z ~ P(z) = Unif(z; S^{D-1})
+	z+ ~ P(z+|z) = vMF(z+; z, k_pos)
+	z- ~ P(z-|z) = P(z-) = Unif(z-; S^{D-1})
+
 	The fixed constant k_pos controls how close latents must be to be considered positive (and is different than k(x)). 
 	The latents are transformed into observations via the generative process P(x|z). This defines P(x), P(x+|x) and P(x-).
 
-	The encoder f outputs probabilistic embeddings Q(z|x) = vMF(z; \mu(x), k(x))
+	The encoder f outputs probabilistic embeddings Q(z|x) = vMF(z; \hat{mu}(x), \hat{k}(x)) by predicting f(x) = (\hat{\mu}(x), \hat{k}(x)).
+
+	The loss function is given as:
+
+	L := E[L_f(x, x+, x-_1, ..., x-_M)]
+		x ~ P(x)
+		x+ ~ P(x+|x)
+		x-_m ~ P(x-)
+
+	L_f := -log E[exp(k_pos z^Tz+) / {1/M exp(k_pos z^T z+) + 1/M \sum_{m=1}^M exp(k_pos z^T z-_m)}]
+		z ~ Q(z|x)
+		z+ ~ Q(z+|x+)
+		z-_m ~ Q(z-_m | x-_m)
+
+	It can be proved that the optimizer for this loss learns the correct location \hat{\mu}(x) = R \mu(x), up to a constant orthogonal rotation R,
+	and the correct level of ambiguity \hat{k}(x) = k(x) for each observation x. 
+
 
 
 	"""
