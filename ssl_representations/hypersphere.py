@@ -26,7 +26,12 @@ class MCInfoNCE(nn.Module):
 	and the other samples in the batch as negatively correlated. 
 
 	We assume that there is a natural generative process g that transforms latent components z \in Z into
-	the images x = g(z). We assume Z to be S^{D-1}, or the D dimensional hypersphere.
+	the images x = g(z), x \in X. We assume Z to be S^{D-1}, or the D dimensional hypersphere. We are interested
+	in recovering the latents z for images x. We assume g: Z -> X is an injective and deterministic function.
+	Thus only one z can correspond to each x, and g is invertible. An encoder f trained with a contrastive
+	InfoNCE loss achieves this inversion and recovers the correct latent z:
+
+	f(x) = f(g(z)) = \hat{z} = Rz, up to an orthogonal rotation R. 
 
 	We parameterize P(z|x) by a vMF distribution:
 
