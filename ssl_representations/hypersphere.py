@@ -11,7 +11,7 @@ import timm
 class MCInfoNCE(nn.Module):
 	r"""
 	In this method, we interpret the feature vector and (inverse) temperature of the SimCLR framework
-	as the mean direction and concentration parameter of the von Mises-Fisher distribution. The distribution
+	as the mean direction and concentration parameter of the von Mises-Fisher (vMF) distribution. The distribution
 	is of the form:
 
 	f_p (\vx; \mu, k) = C_p(k)exp(k \mu^T \vx)
@@ -21,6 +21,11 @@ class MCInfoNCE(nn.Module):
 	C_p(k) = \frac{k^{p/2 - 1}}{(2\pi)^{p/2}I_{p/2 - 1}(k)}
 
 	where I_{v} denotes the modified Bessel function of the first kind at order v. 
+
+	The SimCLR method essentially views the two views of a sample as positively correlated,
+	and the other sample in the batch as negatively correlated. 
+
+
 	"""
 	def __init__(self):
 		super().__init__()
