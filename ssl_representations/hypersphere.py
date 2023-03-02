@@ -82,4 +82,15 @@ class MCInfoNCE(nn.Module):
 		pass
 
 class vonMisesFisher(torch.distributions.Distribution):
-	
+	r"""Allows for the sampling from a von Mises Fisher distribution.
+
+	We sample from a vMF q(z|e_1, k), with e_1 is the mean direction.
+	The vMF density is uniform in all the m-2 dimensional sub hyperspheres. 
+	{ x \in S^{m-1}|e^T_1 \vx = w}
+	"""
+
+	def __init__(self):
+		super(self)
+
+	def sample(self):
+		pass
