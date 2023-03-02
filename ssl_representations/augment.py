@@ -4,9 +4,6 @@ import numpy as np
 import torchvision.transforms as transforms
 from torchvision.transforms import InterpolationMode
 
-
-# Taken from the VICReg repo: https://github.com/facebookresearch/vicreg/blob/main/augmentations.py
-
 class GaussianBlur(object):
     def __init__(self, p):
         self.p = p
