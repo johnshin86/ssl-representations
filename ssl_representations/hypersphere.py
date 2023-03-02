@@ -80,3 +80,6 @@ class MCInfoNCE(nn.Module):
 
 	def forward(self):
 		pass
+
+class vonMisesFisher(torch.distributions.Distribution):
+	
