@@ -14,11 +14,12 @@ For training, run the command:
 
 An inference/evaluation pipeline is not yet implemented. 
 
-# Methods
+# Methods Implemented
 
 - VICReg (https://arxiv.org/abs/2105.04906)
 - Barlow Twins (https://arxiv.org/abs/2103.03230)
 - InfoNCE/SimCLR (https://arxiv.org/abs/2002.05709)
+- Temperature as Uncertainty (TaU) (https://arxiv.org/abs/2110.04403)
 
 # Augmentation Policies
 
@@ -32,5 +33,9 @@ An inference/evaluation pipeline is not yet implemented.
 # Model Zoo Support
 
 - timm (https://github.com/huggingface/pytorch-image-models)
+
+# Under Active Development
+
+- Probabilistic Contrastive Learning (https://arxiv.org/abs/2302.02865)
 
 
