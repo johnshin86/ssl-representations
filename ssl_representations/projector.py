@@ -2,6 +2,15 @@ import torch.nn as nn
 
 
 def Projector(args, embedding):
+    r"""Current vision SSL methods require the use of a projector function 
+    (also referred to as an expander in some references). The projector
+    function is typically a 3-layer MLP with non-linearities in intermediate layers.
+    Ablation studies of the architecture of the projector function were performed
+    in the Barlow Twins paper (https://arxiv.org/abs/2103.03230).
+
+    It is hypothesized that the use of the projector function aids in downstream performance
+    when the SSL task and the downstream task are not aligned (https://arxiv.org/abs/2206.13378).
+    """
     mlp_spec = f"{embedding}-{args.mlp}"
     layers = []
     f = list(map(int, mlp_spec.split("-")))
