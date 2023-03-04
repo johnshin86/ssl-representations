@@ -71,9 +71,6 @@ class MCInfoNCE(nn.Module):
 
 	It can be proved that the optimizer for this loss learns the correct location \hat{\mu}(x) = R \mu(x), up to a constant orthogonal rotation R,
 	and the correct level of ambiguity \hat{k}(x) = k(x) for each observation x. 
-
-
-
 	"""
 	def __init__(self):
 		super().__init__()
@@ -84,11 +81,61 @@ class MCInfoNCE(nn.Module):
 class vonMisesFisher(torch.distributions.Distribution):
 	r"""Allows for the sampling from a von Mises Fisher distribution.
 
-	We sample from a vMF q(z|e_1, k), with e_1 is the mean direction.
-	The vMF density is uniform in all the m-2 dimensional sub hyperspheres. 
-	{ x \in S^{m-1}|e^T_1 \vx = w}
-	"""
+	The algorithm is as follows:
+	
+	Algorithm 1
+	-----------
+	Input: dimension m, mean \mu, concentration k
+	sample v ~ U(S^{m-2})
+	sample w ~ g(w|k, m) \propto exp(wk)(1 - w^2)^{(m-3)/2}
+	accept-reject procedure
+	z' = (w; sqrt(1-w^2)v^T)^T
+	U = Householder(e_1, \mu)
+	Return Uz'
 
+
+	We sample from a vMF q(z|e_1, k), with e_1 as the mean direction.
+	The vMF density is uniform in all the m-2 dimensional sub hyperspheres. 
+	{ x \in S^{m-1}|e^T_1 \vx = w}, and hence the sampling technique reduces
+	to sampling the scalar value w from the univariate density
+
+	g(w|k, m) \propto  exp(kw)(1-w^2)^{(m-3)/2}, w \in [-1, 1]
+
+	using an accept-reject scheme. 
+
+	After getting a sample from q(z|e_1, k) an orthogonal transformation
+	U(\mu) is applied such that the transformed sample is distributed
+	according to q(z|\mu, k). This can done with a Householder
+	reflection U(\mu)e_1 = \mu.
+
+	The accept-reject procedure is as follows:
+
+	Algorithm 2
+	-----------
+	Input: dimension m, concentration k
+	Initialize values:
+	b = (-2k + \sqrt{4k^2 + (m-1)^2})/2
+	a = ((m-1) + 2k + \sqrt{4k^2 + (m-1)^2})/4
+	d = 4ab/(1 + b) - (m-1)ln(m-1)
+
+	repeat
+		Sample \eps ~ Beta(1/2(m-1), 1/2(m-1))
+		w = h(\eps, k) = (1 - (1 + b)\eps)/(1 - (1 - b)\eps)
+		t = 2ab / (1 - (1 - b)\eps)
+		Sample u ~ U(0,1)
+	until (m-1)ln(t) - t + d >= ln(u)
+	Return w
+
+	Finally, we have the algorithm for the Householder transformation.
+
+	Algorithm 3
+	-----------
+	Input: mean \mu, modal vector e_1
+	u' = e_1 - \mu
+	u = u' / ||u||_2
+	U =  I - 2 uu^T
+	Return U
+	"""
 	def __init__(self):
 		super(self)
 
