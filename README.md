@@ -46,6 +46,8 @@ An inference/evaluation pipeline is not yet implemented.
 
 # Planned Methods
 
+- Vision Transformer based SSL methods.
+
 
 
 
