@@ -139,7 +139,7 @@ def main(args):
 
 
     model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
-    #single node, multi-GPU training: DistributedDataParallel > torch.nn.DataParallel
+    #single node, multi-GPU training: DistributedDataParallel > torch.nn.DataParallel (See: https://pytorch.org/tutorials/intermediate/ddp_tutorial.html) 
     model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[gpu])
     optimizer = LARS(
         model.parameters(),

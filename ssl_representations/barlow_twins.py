@@ -8,8 +8,8 @@ import timm
 
 
 class BarlowTwins(nn.Module):
-    r"""TODO: write docstring. 
-    """
+    r"""TODO (jys): write docstring. 
+    """ 
     def __init__(self, args):
         super().__init__()
         self.args = args

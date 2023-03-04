@@ -7,8 +7,8 @@ from projector import Projector
 
 import timm
 
-# TODO: clean up and refactor. 
-# maybe add separate internal functions for boltzmann and simclr style?
+# TODO (jys): clean up and refactor. 
+# maybe add separate internal methods for boltzmann and simclr style?
 # Add docstring.
 
 class SimCLR(nn.Module):
