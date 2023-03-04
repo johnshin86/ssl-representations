@@ -1,10 +1,16 @@
 # SSL Representations
 
-This library implements many recent vision SSL methods, as well as uncertainty estimation methods built on top of these methods. 
+Self-Supervised Learning := SSL
+
+This library implements many recent vision SSL methods, as well as uncertainty estimation methods built on top of these methods.
+Rather than aiming to implement every SSL method, the goal of this library is to focus on understanding conceptually new methods
+and focus on understanding their theory and rigorous application, as well as testing of the produced representation quality. 
 
 Self-supervised learning in vision is an interplay of the augmentation policy, the inductive bias of the architecture,
-and the interactions across samples induced by the loss function (https://arxiv.org/abs/2302.02774). The library was initially built from the facebook VICReg repo,
-but has been heavily modified.
+and the interactions across samples induced by the loss function (https://arxiv.org/abs/2302.02774).  The optimal representations can be mapped to different spectral embedding methods (https://arxiv.org/abs/2205.11508), though this requires a "god's eye view" of the underlying similarity matrix. Contrastive and non-contrastive methods can be viewed through the lens
+of Gram and covariance matrices, respectively (https://arxiv.org/abs/2206.02574).
+
+The library was initially built from the facebook VICReg repo, but has been heavily modified.
 
 # Instructions on Use
 
