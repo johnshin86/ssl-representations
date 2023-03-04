@@ -9,6 +9,7 @@ import timm
 
 # TODO: clean up and refactor. 
 # maybe add separate internal functions for boltzmann and simclr style?
+# Add docstring.
 
 class SimCLR(nn.Module):
 	def __init__(self, args):

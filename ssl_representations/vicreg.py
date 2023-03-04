@@ -10,6 +10,8 @@ import timm
 
 
 class VICReg(nn.Module):
+    r"""TODO: add docstring. 
+    """
     def __init__(self, args):
         super().__init__()
         self.args = args

@@ -28,7 +28,10 @@ class Solarization(object):
 
 
 class TrainTransform(object):
-    r"""Performs two augmentations on the same batch of samples. 
+    r"""Performs two augmentations on the same batch of samples.
+    The augmentation policy is critical in the performance of SSL methods.
+
+    TODO: add augmentation references.
     
     Note that the prime transform is slightly different from the normal
     transform. The normal transform is guaranteed to use Gaussian Blur,
