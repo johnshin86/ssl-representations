@@ -149,6 +149,8 @@ class vonMisesFisher(torch.distributions.Distribution):
 
 		self.dimension = dimension
 		self.batch_size = batch_size
+
+		#retrieve device from mean tensor rather than passing as str?
 		self.device = device
 
 	def sample(self, mean: torch.Tensor, k: torch.Tensor) -> torch.Tensor:
