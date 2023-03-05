@@ -10,7 +10,24 @@ import timm
 
 
 class VICReg(nn.Module):
-    r"""TODO (jys): add docstring. 
+    r"""This is an implementation of the VICReg SSL method.
+    The VICReg method builds off the Barlow Twins decorrelation
+    mechanism, yet is distinct in that rather than optimizing the cross-correlation
+    between views, the covariance matrix is computed within a batch of views.
+
+    The covariance of a batch of views is independently optimized. The
+    off-diagonal terms of the covariance matrix are optimized to be zero.
+    Rather than optimizing the on-diagonal terms of the covariance matrix
+    to be the identity, the standard deviation is optimized to be near the value
+    one using the hinge loss. The VICReg paper claims that this aids training stability.
+
+    Finally, the L2 distance between a pair of views is minimized. Suppose
+    we have two batches of views, x, y. Let X and Y be the covariance matrices
+    within the batch. We then have:
+
+    1/batch_size * ||x - y||^2_2 
+    + coeff_1 * \sum_ii \max(0, 1 - \sqrt{X_ii}) + \max(0, 1 - \sqrt{Y_ii}) 
+    + coeff_2 * \sum_{i \neq j} (X_ij)^2 + (Y_ij)^2
     """
     def __init__(self, args):
         super().__init__()
@@ -27,7 +44,7 @@ class VICReg(nn.Module):
         self.backbone = model
         self.projector = Projector(args, self.rep_dim)
 
-    def forward(self, x, y):
+    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         x = self.projector(self.backbone(x))
         y = self.projector(self.backbone(y))
 

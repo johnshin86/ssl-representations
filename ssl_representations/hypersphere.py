@@ -11,8 +11,8 @@ import timm
 class MCInfoNCE(nn.Module):
 	r"""
 	In this method, we interpret the feature vector and (inverse) temperature of the SimCLR framework
-	as the mean direction and concentration parameter of the von Mises-Fisher (vMF) distribution. The distribution
-	is of the form:
+	as the mean direction and concentration parameter of the von Mises-Fisher (vMF) distribution. 
+	The distribution is of the form:
 
 	f_p (\vz; \mu, k) = C_p(k)exp(k \mu^T \vz)
 
@@ -23,7 +23,8 @@ class MCInfoNCE(nn.Module):
 	where I_{v} denotes the modified Bessel function of the first kind at order v. 
 
 	The SimCLR method essentially views the two views of a sample as positively correlated,
-	and the other samples in the batch as negatively correlated. 
+	and the other samples in the batch as negatively correlated. The measure of correlation is
+	the cosine between the two vectors. 
 
 	We assume that there is a natural generative process g that transforms latent components z \in Z into
 	the images x = g(z), x \in X. We assume Z to be S^{D-1}, or the D dimensional hypersphere. We are interested
@@ -45,15 +46,15 @@ class MCInfoNCE(nn.Module):
 	P(z|x) = C(k(x))exp(k(x)\mu(x)^Tz)
 
 	Suppose we have (x, x+, x-_1, ..., x-_M), or a reference sample x, a positive sample x^+,
-	and negative samples x-_1, ... , x-_M. We assume that these samples are generated from the  latents
-	z, z+, z-_1, ... , z-_M. The latens are drawn:
+	and negative samples x-_1, ... , x-_M. We assume that these samples are generated from the latents
+	z, z+, z-_1, ... , z-_M. The latents are drawn:
 
 	z ~ P(z) = Unif(z; S^{D-1})
 	z+ ~ P(z+|z) = vMF(z+; z, k_pos)
 	z- ~ P(z-|z) = P(z-) = Unif(z-; S^{D-1})
 
-	The fixed constant k_pos controls how close latents must be to be considered positive (and is different than k(x)). 
-	The latents are transformed into observations via the generative process P(x|z). This defines P(x), P(x+|x) and P(x-).
+	The fixed constant k_pos controls how close latents must be to be considered positive (and is different than the concentration
+	parameter k(x)). The latents are transformed into observations via the generative process P(x|z). This defines P(x), P(x+|x) and P(x-).
 
 	The encoder f outputs probabilistic embeddings Q(z|x) = vMF(z; \hat{mu}(x), \hat{k}(x)) by predicting f(x) = (\hat{\mu}(x), \hat{k}(x)).
 
@@ -75,7 +76,7 @@ class MCInfoNCE(nn.Module):
 	def __init__(self):
 		super().__init__()
 
-	def forward(self):
+	def forward(self, z1: torch.Tensor, z2: torch.Tensor) -> torch.Tensor:
 		pass
 
 class vonMisesFisher(torch.distributions.Distribution):
@@ -88,15 +89,14 @@ class vonMisesFisher(torch.distributions.Distribution):
 	Input: dimension m, mean \mu, concentration k
 	sample v ~ U(S^{m-2})
 	sample w ~ g(w|k, m) \propto exp(wk)(1 - w^2)^{(m-3)/2}
-	accept-reject procedure
+	accept-reject procedure (Algorithm 2)
 	z' = (w; sqrt(1-w^2)v^T)^T
-	U = Householder(e_1, \mu)
+	U = Householder(e_1, \mu) (Algorithm 3)
 	Return Uz'
 
-
 	We sample from a vMF q(z|e_1, k), with e_1 as the mean direction.
-	The vMF density is uniform in all the m-2 dimensional sub hyperspheres. 
-	{ x \in S^{m-1}|e^T_1 \vx = w}, and hence the sampling technique reduces
+	The vMF density is uniform in all the m-2 dimensional sub-hyperspheres. 
+	{x \in S^{m-1}|e^T_1 \vx = w}, and hence the sampling technique reduces
 	to sampling the scalar value w from the univariate density
 
 	g(w|k, m) \propto  exp(kw)(1-w^2)^{(m-3)/2}, w \in [-1, 1]
@@ -137,7 +137,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 	Return U
 	"""
 	def __init__(self):
-		super(self)
+		super().__init__()
 
-	def sample(self):
+	def sample(self, m: int, mean: torch.Tensor, concentration: torch.Tensor) -> torch.Tensor:
 		pass

@@ -9,9 +9,43 @@ import timm
 
 # TODO (jys): clean up and refactor. 
 # maybe add separate internal methods for boltzmann and simclr style?
-# Add docstring.
 
 class SimCLR(nn.Module):
+	r"""This is an implementation of the SimCLR SSL method. This method is based
+	on the InfoNCE loss (noise contrastive estimation). There are some modifications
+	to the methodology of SimCLR with respect to the original InfoNCE paper.
+	
+	Suppose we have a batch of N examples, and we randomly augment each
+	sample twice, resulting in 2N examples, which we refer to as paired views.
+
+	In the original SimCLR paper, the quantity l_ij is defined as:
+
+	l_ij = -log{exp(s(z_i, z_j)/t)/\sum_{k \neq i} exp(s(z_i, z_k)/t)}
+
+	Where the indices i,j correspond to two positive pairs,
+	and the sum of the denominator is over the other 2(N-1)
+	samples in the batch of two views. The sum ignores the 
+	i'th term. s_ij := (z_i, z_j) / (||z_i|| * ||z_j||)
+
+	In the original paper, the scalar t is not a learnable
+	parameter but a hyperparameter. The full loss function
+	sum is a symmetrized sum over every pair:
+
+	L = 1/(2N) \sum_{k=1}^N l(2k-1, 2k) + l(2k, 2k-1)
+
+	Where each positive pair is indexed (2k, 2k-1), k \in [1, ..., N].
+
+	An alternative formulation of SimCLR does not skip
+	the i'th term in the denominator. This is akin to
+	a Boltzmann probability.
+
+	We can additionally make t a learnable parameter rather than
+	a hyperparameter. To accomplish this, it is more numerically stable
+	to learn the inverse temperature \beta = 1/t (as t-> 0 we have an overflow).
+	This beta parameter is implemented as an extra dimension of the output
+	of the projector, which is passed through a sigmoid function with range (0,1).
+	The temperature is thus bounded [1, \inf).  
+	"""
 	def __init__(self, args):
 		super().__init__()
 		self.args = args
@@ -36,7 +70,7 @@ class SimCLR(nn.Module):
 
 
 
-	def forward(self, y1, y2):
+	def forward(self, y1: torch.Tensor, y2: torch.Tensor) -> torch.Tensor:
 
 		z1 = self.projector(self.backbone(y1))
 		z2 = self.projector(self.backbone(y2))

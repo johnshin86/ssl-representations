@@ -8,7 +8,32 @@ import timm
 
 
 class BarlowTwins(nn.Module):
-    r"""TODO (jys): write docstring. 
+    r"""An implementation of the Barlow Twins SSL method. 
+    The Barlow Twins method computes the cross-correlation
+    matrix between a batch of views. The optimization objective
+    is to have the cross-correlation matrix be the identity matrix.
+    This will align the views, while making the rest of the batch
+    orthogonal.
+
+    Suppose we have two batches of views (z1, z2) where
+    they are both of size batch_size, feature_dim.
+    We z-score (standardize) both views over the batch, 
+    and compute the cross-correlation matrix.
+
+    C = 1/batch_size * bn(z1).T @ bn(z2)
+
+    The on-diagonal terms must minimize:
+
+    \sum_i (C_ii - 1)^2
+
+    While the off-diagonal terms must minimize:
+
+    \sum_{i \neq j} (C_ij)^2
+
+    The off-diagonal term is down-weighted in comparison
+    to the on-diagonal term:
+
+    on_diag + \lambda * off_diag
     """ 
     def __init__(self, args):
         super().__init__()
@@ -28,7 +53,7 @@ class BarlowTwins(nn.Module):
         # normalization layer for the representations z1 and z2
         self.bn = nn.BatchNorm1d(self.embedding_dim, affine=False)
 
-    def forward(self, y1, y2):
+    def forward(self, y1: torch.Tensor, y2: torch.Tensor) -> torch.Tensor:
         z1 = self.projector(self.backbone(y1))
         z2 = self.projector(self.backbone(y2))
 
