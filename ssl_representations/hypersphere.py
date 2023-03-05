@@ -84,6 +84,7 @@ class MCInfoNCE(nn.Module):
 	def forward(self, z1: torch.Tensor, z2: torch.Tensor) -> torch.Tensor:
 
 		# draw vMF samples for z1 and z2, and compute SimCLR loss. 
+		# break off mean and k from z1 and z2.
 		pass
 
 class vonMisesFisher(torch.distributions.Distribution):
