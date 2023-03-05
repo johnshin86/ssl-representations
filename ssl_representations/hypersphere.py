@@ -167,6 +167,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 		d = 4*a*b/(1 + b) - (m - 1)*torch.log(m-1)
 
 		# may be a way to do this better, check official repo
+		# I recall there was something with rolling the samples
 		while True:
 			eps = self._sample_beta(self.dimension)
 			w = (1 - (1 + b)*eps)/(1 - (1 - b)*eps)
