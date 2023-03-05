@@ -36,7 +36,7 @@ class TrainTransform(object):
     Note that the prime transform is slightly different from the normal
     transform. The normal transform is guaranteed to use Gaussian Blur,
     while the primed transform has only a 10% chance. The normal transform
-    also does not solarize, while the primed transform has a chance to solarize.
+    also does not solarize, while the primed transform has a 0.2 chance to solarize.
     """
     def __init__(self, args):
         self.args = args

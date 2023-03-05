@@ -73,10 +73,17 @@ class MCInfoNCE(nn.Module):
 	It can be proved that the optimizer for this loss learns the correct location \hat{\mu}(x) = R \mu(x), up to a constant orthogonal rotation R,
 	and the correct level of ambiguity \hat{k}(x) = k(x) for each observation x. 
 	"""
-	def __init__(self):
+	def __init__(self, dimension: int, batch_size: int, device: str):
 		super().__init__()
 
+		self.dimension = dimension
+		self.batch_size = batch_size
+		self.device
+		self.sampler = vonMisesFisher(dimension = self.dimension, batch_size = self.batch_size, device = self.device)
+
 	def forward(self, z1: torch.Tensor, z2: torch.Tensor) -> torch.Tensor:
+
+		# draw vMF samples for z1 and z2, and compute SimCLR loss. 
 		pass
 
 class vonMisesFisher(torch.distributions.Distribution):
@@ -132,12 +139,60 @@ class vonMisesFisher(torch.distributions.Distribution):
 	-----------
 	Input: mean \mu, modal vector e_1
 	u' = e_1 - \mu
-	u = u' / ||u||_2
+	u = u' / ||u'||_2
 	U =  I - 2 uu^T
 	Return U
 	"""
-	def __init__(self):
+	def __init__(self, dimension: int, batch_size: int, device: str):
 		super().__init__()
 
-	def sample(self, m: int, mean: torch.Tensor, concentration: torch.Tensor) -> torch.Tensor:
-		pass
+		self.dimension = dimension
+		self.batch_size = batch_size
+		self.device = device
+
+	def sample(self, mean: torch.Tensor, k: torch.Tensor) -> torch.Tensor:
+		v = self._sample_v()
+		w = self._accept_reject_w(k = k)
+		# will batch_size, 1 * batch_size, dimension correctly broadcast?
+		z_prime = torch.cat([w, torch.sqrt(1 - w.pow(2))*mean], dim=1)
+		U = self._householder(mean)
+		return U @ z_prime
+
+	def _accept_reject_w(k: torch.Tensor) -> torch.Tensor:
+		# k will be batch_size, 1
+
+		# will the float m broadcast correctly with the batch_size, 1 size k? need to check
+		b = (-2 * k + torch.sqrt(4*k + (m-1)**2))/2.
+		a = (m - 1) + 2*k + torch.sqrt(4*k**2 + (m-1)**2)/4.
+		d = 4*a*b/(1 + b) - (m - 1)*torch.log(m-1)
+
+		# may be a way to do this better, check official repo
+		while True:
+			eps = self._sample_beta(self.dimension)
+			w = (1 - (1 + b)*eps)/(1 - (1 - b)*eps)
+			t = 2*a*b / (1 - (1 - b)*eps)
+			u = self._sample_uniform()
+
+			lhs = (m - 1)*torch.log(t) - t + d 
+			rhs = torch.log(u)
+			if lhs >= rhs: 
+				break
+		return w # batch_size, 1
+
+	def _householder(mean: torch.Tensor) -> torch.Tensor:
+		zeros_vector = torch.zeros_like(mean) #inherits device from mean
+		modal_vector = zeros_vector[:, 0] = torch.ones(self.batch_size, device = self.device)
+
+		u_prime = modal_vector - mean
+		u = u_prime / torch.linalg.norm(u_prime, dim=0)
+		U = torch.eye(self.batch_size, device = self.device) - 2 * torch.outer(u, u)
+		return U
+
+	def _sample_beta(dimension: int) -> float:
+		return eps
+
+	def _sample_uniform():
+		return u
+
+	def _sample_v():
+		return v
