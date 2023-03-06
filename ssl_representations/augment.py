@@ -1,8 +1,12 @@
 from PIL import ImageOps, ImageFilter
 import numpy as np
 
+import torch
 import torchvision.transforms as transforms
 from torchvision.transforms import InterpolationMode
+
+from typing import Tuple
+
 
 class GaussianBlur(object):
     def __init__(self, p):
@@ -41,13 +45,17 @@ class TrainTransform(object):
     Parameters
     ----------
     sample: torch.Tensor
+
         A batch of samples from the dataset.
 
     Returns
     -------
     x1: torch.Tensor
+
         A randomly augmented batch of samples.
+    
     x2: torch.Tensor
+        
         A second randomly augmented batch of samples. x1[i] and x2[i] correspond to the same sample.
     """
     def __init__(self, args):
@@ -59,7 +67,7 @@ class TrainTransform(object):
         RandomHorizontalFlip
         ColorJitter
         RandomGrayscale
-        GaussianBluer
+        GaussianBlur
         Solarization
         Normalize
         """
@@ -128,7 +136,7 @@ class TrainTransform(object):
             ]
         )
 
-    def __call__(self, sample):
+    def __call__(self, sample: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         x1 = self.transform(sample)
         x2 = self.transform_prime(sample)
         return x1, x2
