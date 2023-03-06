@@ -17,7 +17,8 @@ def off_diagonal(x):
 class FullGatherLayer(torch.autograd.Function):
     """
     Gather tensors from all process and support backward propagation
-    for the gradients across processes.
+    for the gradients across processes. This is used to concatenate
+    intermediate representations from different GPUs.
     """
 
     @staticmethod

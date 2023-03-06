@@ -44,7 +44,22 @@ class SimCLR(nn.Module):
 	to learn the inverse temperature \beta = 1/t (as t-> 0 we have an overflow).
 	This beta parameter is implemented as an extra dimension of the output
 	of the projector, which is passed through a sigmoid function with range (0,1).
-	The temperature is thus bounded [1, \inf).  
+	The temperature is thus bounded [1, \inf).
+
+	Parameters
+	----------
+	y1: torch.Tensor
+
+		A batch of intermediate representations that have been randomly augmented at the input level.
+
+	y2: 
+		A second batch of intermediate representations that have been randomly augmented at the input level. Each index corresponds to the same sample in the first batch.
+
+	Returns
+	-------
+	loss: torch.Tensor
+
+		A scalar valued loss.
 	"""
 	def __init__(self, args):
 		super().__init__()

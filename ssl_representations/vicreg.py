@@ -28,6 +28,21 @@ class VICReg(nn.Module):
     1/batch_size * ||x - y||^2_2 
     + coeff_1 * \sum_ii \max(0, 1 - \sqrt{X_ii}) + \max(0, 1 - \sqrt{Y_ii}) 
     + coeff_2 * \sum_{i \neq j} (X_ij)^2 + (Y_ij)^2
+
+    Parameters
+    ----------
+    x: torch.Tensor
+
+        A batch of intermediate representations that have been randomly augmented at the input level.
+
+    y: 
+        A second batch of intermediate representations that have been randomly augmented at the input level. Each index corresponds to the same sample in the first batch.
+
+    Returns
+    -------
+    loss: torch.Tensor
+
+        A scalar valued loss.
     """
     def __init__(self, args):
         super().__init__()
