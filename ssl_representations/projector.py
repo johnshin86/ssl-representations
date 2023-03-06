@@ -1,7 +1,7 @@
 import torch.nn as nn
 
 
-def Projector(args, embedding):
+def Projector(args, representation_dim: int) -> nn.Sequential:
     r"""Current vision SSL methods require the use of a projector function 
     (also referred to as an expander function in some references). The projector
     function is typically a 3-layer MLP with non-linearities in intermediate layers.
@@ -10,8 +10,25 @@ def Projector(args, embedding):
 
     It is hypothesized that the use of the projector function aids in downstream performance
     when the SSL task and the downstream task are not aligned (https://arxiv.org/abs/2206.13378).
+
+    Parameters
+    ----------
+    args: ArgParser
+
+        ArgParser object from the train.py file
+    
+    representation_dim: int
+
+        Dimension of the input of the projector
+
+    Returns
+    -------
+    
+    projector: nn.Sequential
+    
+        An nn.Sequential object containing a 3 layer MLP, with intermediate batchnorms and ReLUs.
     """
-    mlp_spec = f"{embedding}-{args.mlp}"
+    mlp_spec = f"{representation_dim}-{args.mlp}"
     layers = []
     f = list(map(int, mlp_spec.split("-")))
     for i in range(len(f) - 2):
