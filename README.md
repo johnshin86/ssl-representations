@@ -1,6 +1,6 @@
 # SSL Representations
 
-Self-Supervised Learning := SSL
+SSL := Self-Supervised Learning
 
 This library implements many recent vision SSL methods, as well as uncertainty estimation methods built on top of these methods.
 Rather than aiming to implement every SSL method, the goal of this library is to focus on understanding conceptually new methods
