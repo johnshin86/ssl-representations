@@ -37,8 +37,32 @@ class TrainTransform(object):
     transform. The normal transform is guaranteed to use Gaussian Blur,
     while the primed transform has only a 10% chance. The normal transform
     also does not solarize, while the primed transform has a 0.2 chance to solarize.
+
+    Parameters
+    ----------
+    sample: torch.Tensor
+        A batch of samples from the dataset.
+
+    Returns
+    -------
+    x1: torch.Tensor
+        A randomly augmented batch of samples.
+    x2: torch.Tensor
+        A second randomly augmented batch of samples. x1[i] and x2[i] correspond to the same sample.
     """
     def __init__(self, args):
+        r"""Initializes the augmentation policy as given by args, which is passed from the parser in the train file.
+
+        Currently, only the augmentation policy from VICReg is implemented, which consists of:
+
+        RandomResizeCrop
+        RandomHorizontalFlip
+        ColorJitter
+        RandomGrayscale
+        GaussianBluer
+        Solarization
+        Normalize
+        """
         self.args = args
         self.resolution = None
 
@@ -53,6 +77,9 @@ class TrainTransform(object):
             self.resolution = 32
             self.mean = [0.49139968, 0.48215827 ,0.44653124]
             self.std = [0.24703233, 0.24348505, 0.26158768]
+
+        else:
+            raise NotImplementedError("Dataset has not yet been implemented.")
 
         self.transform = transforms.Compose(
             [
