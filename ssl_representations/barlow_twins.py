@@ -34,6 +34,21 @@ class BarlowTwins(nn.Module):
     to the on-diagonal term:
 
     on_diag + \lambda * off_diag
+
+    Parameters
+    ----------
+    y1: torch.Tensor
+
+        Batch of intermediate representations, which have been randomly augmented at the input level.
+
+    y2: torch.Tensor
+
+        Second batch of intermediate representations, which have been randomly augmented at the input level.
+
+    Returns
+    -------
+    loss: torch.Tensor
+        Scalar loss value. 
     """ 
     def __init__(self, args):
         super().__init__()
