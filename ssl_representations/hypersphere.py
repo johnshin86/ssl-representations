@@ -71,7 +71,20 @@ class MCInfoNCE(nn.Module):
 		z-_m ~ Q(z-_m | x-_m)
 
 	It can be proved that the optimizer for this loss learns the correct location \hat{\mu}(x) = R \mu(x), up to a constant orthogonal rotation R,
-	and the correct level of ambiguity \hat{k}(x) = k(x) for each observation x. 
+	and the correct level of ambiguity \hat{k}(x) = k(x) for each observation x.
+
+	Parameters
+	----------
+	z1: torch.Tensor
+		Batch of intermediate representations which have been randomly augmented at the input level.
+
+	z2: torch.Tensor
+		Second batch of intermediate representations which have been randomly augmented at the input level. 
+
+	Returns
+	-------
+	loss: torch.Tensor
+		scalar loss value. 
 	"""
 	def __init__(self, dimension: int, batch_size: int, device: str):
 		super().__init__()
