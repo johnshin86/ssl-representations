@@ -162,19 +162,38 @@ class vonMisesFisher(torch.distributions.Distribution):
 	U =  I - 2 uu^T
 	Return U
 	"""
+
+	arg_constraints = {
+
+		"mean_direction": torch.distributions.constraints.real,
+		"concentration": torch.distributions.constraints.positive
+
+	}
+
+	support = torch.distributions.constraints.real
+	has_rsample = True 
+
 	def __init__(self, mean_direction: torch.Tensor, concentration: torch.Tensor):
 		super().__init__()
 
+		#distribution params
 		self.mean_direction = mean_direction
 		self.concentration = concentration
 
+		#tensor settings
 		self.dtype = mean_direction.dtype
 		self.device = mean_direction.device
 
+		#dim settings
 		self.dimension = mean_direction.shape[-1] #batch_size, dim
-		self.basis 
+		self.batch_size = mean_direction.shape[0]
 
-	def sample(self, mean: torch.Tensor, k: torch.Tensor) -> torch.Tensor:
+		#algorithm tmp tensors
+		self.mode = torch.zeros(self.dimension, device=self.device)
+		self.mode[0] = 1.0
+
+	#the rsample method is needed for pathwise derivative
+	def rsample(self) -> torch.Tensor:
 		v = self._sample_v()
 		w = self._accept_reject_w(k = k)
 		# will batch_size, 1 * batch_size, dimension correctly broadcast?
@@ -182,7 +201,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 		U = self._householder(mean)
 		return U @ z_prime
 
-	def _accept_reject_w(k: torch.Tensor) -> torch.Tensor:
+	def _accept_reject_w(self) -> torch.Tensor:
 		# k will be batch_size, 1
 
 		b = (-2 * k + torch.sqrt(4*k + (self.dimension - 1)**2))/2. # batch_size, 1
@@ -203,14 +222,12 @@ class vonMisesFisher(torch.distributions.Distribution):
 				break
 		return w # batch_size, 1
 
-	def _householder(mean: torch.Tensor) -> torch.Tensor:
-		zeros_vector = torch.zeros_like(mean) #inherits device from mean
-		modal_vector = zeros_vector[:, 0] = torch.ones(self.batch_size, device = self.device)
+	def _householder(v: torch.Tensor) -> torch.Tensor:
 
-		u_prime = modal_vector - mean
+		u_prime = self.mode - self.mean_direction
 		u = u_prime / torch.linalg.norm(u_prime, dim=0)
 		U = torch.eye(self.batch_size, device = self.device) - 2 * torch.outer(u, u)
-		return U
+		return U @ v
 
 	def _sample_beta(dimension: int) -> float:
 		# Sample from a Beta(1/2(m-1), 1/2(m-1)) distribution
@@ -223,6 +240,10 @@ class vonMisesFisher(torch.distributions.Distribution):
 
 	def _sample_v():
 		#sample a point uniformly on the unit sphere.
-		v = torch.distributions.Normal()
+		v = torch.distributions.Normal(
+			torch.Tensor(0, dtype=self.dtype, device=self.device), 
+			torch.Tensor(1, dtype=self.dtype, device=self.device)
+			).sample() #batch_size, 
+
 
 		return v
