@@ -165,35 +165,40 @@ class vonMisesFisher(torch.distributions.Distribution):
 
 	arg_constraints = {
 
-		"mean_direction": torch.distributions.constraints.real,
-		"concentration": torch.distributions.constraints.positive
+		"mean": torch.distributions.constraints.real,
+		"conc": torch.distributions.constraints.positive
 
 	}
 
 	support = torch.distributions.constraints.real
 	has_rsample = True 
 
-	def __init__(self, mean_direction: torch.Tensor, concentration: torch.Tensor):
+	def __init__(self, mean: torch.Tensor, conc: torch.Tensor):
 		super().__init__()
 
 		#distribution params
-		self.mean_direction = mean_direction
-		self.concentration = concentration
+		self.mean = mean
+		self.conc = conc
 
 		#tensor settings
-		self.dtype = mean_direction.dtype
-		self.device = mean_direction.device
+		self.dtype = mean.dtype
+		self.device = mean.device
 
 		#dim settings
-		self.dimension = mean_direction.shape[-1] #batch_size, dim
-		self.batch_size = mean_direction.shape[0]
+		self.dim = mean.shape[-1] #batch_size, dim
+		self.batch_size = mean.shape[0]
 
 		#algorithm tmp tensors
-		self.mode = torch.zeros(self.dimension, device=self.device)
+		self.mode = torch.zeros(self.dim, device=self.device)
 		self.mode[0] = 1.0
 
+	#the sample method is used for REINFORCE
+	def sample(self, shape = torch.Size()):
+		with torch.no_grad():
+			return self.rsample(shape)
+
 	#the rsample method is needed for pathwise derivative
-	def rsample(self) -> torch.Tensor:
+	def rsample(self, shape = torch.Size()) -> torch.Tensor:
 		v = self._sample_v()
 		w = self._accept_reject_w(k = k)
 		# will batch_size, 1 * batch_size, dimension correctly broadcast?
@@ -201,7 +206,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 		U = self._householder()
 		return U @ z_prime
 
-	def _accept_reject_w(self) -> torch.Tensor:
+	def _accept_reject_w(self, shape) -> torch.Tensor:
 		# k will be batch_size, 1
 
 		b = (-2 * k + torch.sqrt(4*k + (self.dimension - 1)**2))/2. # batch_size, 1
@@ -223,15 +228,18 @@ class vonMisesFisher(torch.distributions.Distribution):
 		return w # batch_size, 1
 
 	def _householder(self) -> torch.Tensor:
-		# constructs the householder transform matrix U = I - u u^T
-		u_prime = self.mode - self.mean_direction
-		u = u_prime / torch.linalg.norm(u_prime, dim=0)
+		# constructs the householder transform matrix U = I - 2* u @ u^T
+		# mode will be (self.dim),
+		# mean will be (batch_size, self.dim)
+		# subtraction will broadcast to (batch_size, self.dim)
+		u_prime = self.mode - self.mean
+		u = u_prime / torch.linalg.norm(u_prime, dim=1).unsqueeze(-1)
 		U = torch.eye(self.dimension, device = self.device) - 2 * torch.outer(u, u)
 		return U
 
 	def _sample_beta(self) -> float:
 		# Sample eps ~ Beta(1/2(m-1), 1/2(m-1))
-		m = self.dimension
+		m = self.dim
 		return eps
 
 	def _sample_uniform(self):
