@@ -198,7 +198,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 		w = self._accept_reject_w(k = k)
 		# will batch_size, 1 * batch_size, dimension correctly broadcast?
 		z_prime = torch.cat([w, torch.sqrt(1 - w.pow(2))*mean], dim=1)
-		U = self._householder(mean)
+		U = self._householder()
 		return U @ z_prime
 
 	def _accept_reject_w(self) -> torch.Tensor:
@@ -222,23 +222,24 @@ class vonMisesFisher(torch.distributions.Distribution):
 				break
 		return w # batch_size, 1
 
-	def _householder(v: torch.Tensor) -> torch.Tensor:
-
+	def _householder(self) -> torch.Tensor:
+		# constructs the householder transform matrix U = I - u u^T
 		u_prime = self.mode - self.mean_direction
 		u = u_prime / torch.linalg.norm(u_prime, dim=0)
-		U = torch.eye(self.batch_size, device = self.device) - 2 * torch.outer(u, u)
-		return U @ v
+		U = torch.eye(self.dimension, device = self.device) - 2 * torch.outer(u, u)
+		return U
 
-	def _sample_beta(dimension: int) -> float:
-		# Sample from a Beta(1/2(m-1), 1/2(m-1)) distribution
+	def _sample_beta(self) -> float:
+		# Sample eps ~ Beta(1/2(m-1), 1/2(m-1))
+		m = self.dimension
 		return eps
 
-	def _sample_uniform():
-		#sample from a uniform distribution U[0,1]
+	def _sample_uniform(self):
+		#sample u ~ U[0,1]
 
 		return u
 
-	def _sample_v():
+	def _sample_v(self):
 		#sample a point uniformly on the unit sphere.
 		v = torch.distributions.Normal(
 			torch.Tensor(0, dtype=self.dtype, device=self.device), 
