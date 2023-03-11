@@ -102,6 +102,11 @@ class MCInfoNCE(nn.Module):
 
 class vonMisesFisher(torch.distributions.Distribution):
 	r"""Allows for the sampling from a von Mises Fisher distribution.
+	The torch.distributions.Distribution class allows for the backpropagation
+	through this sampling. If the PDF is differentiable with respect to its
+	parameters, the sample() and log_prob() methods need to be implemented
+	to use REINFORCE. Otherwise, one can use the pathwise derivative,
+	and the rsample() method must be implemented.
 
 	The algorithm is as follows:
 	
@@ -157,14 +162,17 @@ class vonMisesFisher(torch.distributions.Distribution):
 	U =  I - 2 uu^T
 	Return U
 	"""
-	def __init__(self, dimension: int, batch_size: int, device: str):
+	def __init__(self, mean_direction: torch.Tensor, concentration: torch.Tensor):
 		super().__init__()
 
-		self.dimension = dimension
-		self.batch_size = batch_size
+		self.mean_direction = mean_direction
+		self.concentration = concentration
 
-		#retrieve device from mean tensor rather than passing as str?
-		self.device = device
+		self.dtype = mean_direction.dtype
+		self.device = mean_direction.device
+
+		self.dimension = mean_direction.shape[-1] #batch_size, dim
+		self.basis 
 
 	def sample(self, mean: torch.Tensor, k: torch.Tensor) -> torch.Tensor:
 		v = self._sample_v()
@@ -177,10 +185,9 @@ class vonMisesFisher(torch.distributions.Distribution):
 	def _accept_reject_w(k: torch.Tensor) -> torch.Tensor:
 		# k will be batch_size, 1
 
-		# will the float m broadcast correctly with the batch_size, 1 size k? need to check
-		b = (-2 * k + torch.sqrt(4*k + (m-1)**2))/2.
-		a = (m - 1) + 2*k + torch.sqrt(4*k**2 + (m-1)**2)/4.
-		d = 4*a*b/(1 + b) - (m - 1)*torch.log(m-1)
+		b = (-2 * k + torch.sqrt(4*k + (self.dimension - 1)**2))/2. # batch_size, 1
+		a = (self.dimension - 1) + 2*k + torch.sqrt(4*k**2 + (self.dimension-1)**2)/4.
+		d = 4*a*b/(1 + b) - (self.dimension - 1)*torch.log(self.dimension-1)
 
 		# may be a way to do this better, check official repo
 		# I recall there was something with rolling the samples
@@ -206,10 +213,16 @@ class vonMisesFisher(torch.distributions.Distribution):
 		return U
 
 	def _sample_beta(dimension: int) -> float:
+		# Sample from a Beta(1/2(m-1), 1/2(m-1)) distribution
 		return eps
 
 	def _sample_uniform():
+		#sample from a uniform distribution U[0,1]
+
 		return u
 
 	def _sample_v():
+		#sample a point uniformly on the unit sphere.
+		v = torch.distributions.Normal()
+
 		return v
