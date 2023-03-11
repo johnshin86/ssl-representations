@@ -199,44 +199,19 @@ class vonMisesFisher(torch.distributions.Distribution):
 
 	#the rsample method is needed for pathwise derivative
 	def rsample(self, shape = torch.Size()) -> torch.Tensor:
-		v = self._sample_v()
-		w = self._accept_reject_w(k = k)
-		# will batch_size, 1 * batch_size, dimension correctly broadcast?
-		z_prime = torch.cat([w, torch.sqrt(1 - w.pow(2))*mean], dim=1)
-		U = self._householder()
-		return U @ z_prime
+		pass
 
 	def _accept_reject_w(self, shape) -> torch.Tensor:
 		# k will be batch_size, 1
+		pass
 
-		b = (-2 * k + torch.sqrt(4*k + (self.dimension - 1)**2))/2. # batch_size, 1
-		a = (self.dimension - 1) + 2*k + torch.sqrt(4*k**2 + (self.dimension-1)**2)/4.
-		d = 4*a*b/(1 + b) - (self.dimension - 1)*torch.log(self.dimension-1)
-
-		# may be a way to do this better, check official repo
-		# I recall there was something with rolling the samples
-		while True:
-			eps = self._sample_beta(self.dimension)
-			w = (1 - (1 + b)*eps)/(1 - (1 - b)*eps)
-			t = 2*a*b / (1 - (1 - b)*eps)
-			u = self._sample_uniform()
-
-			lhs = (m - 1)*torch.log(t) - t + d 
-			rhs = torch.log(u)
-			if lhs >= rhs: 
-				break
-		return w # batch_size, 1
-
-	def _householder(self) -> torch.Tensor:
+	def _householder(self, z: torch.Tensor) -> torch.Tensor:
 		# constructs the householder transform matrix U = I - 2* u @ u^T
 		# mode will be (self.dim),
 		# mean will be (batch_size, self.dim)
 		# subtraction will broadcast to (batch_size, self.dim)
-		u_prime = self.mode - self.mean
-		u = u_prime / torch.linalg.norm(u_prime, dim=1).unsqueeze(-1)
-		U = torch.eye(self.dimension, device = self.device) - 2 * torch.outer(u, u)
-		return U
-
+		pass
+		
 	def _sample_beta(self) -> float:
 		# Sample eps ~ Beta(1/2(m-1), 1/2(m-1))
 		m = self.dim
