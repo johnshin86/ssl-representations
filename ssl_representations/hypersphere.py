@@ -191,6 +191,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 		#algorithm tmp tensors
 		self.mode = torch.zeros(self.dim, device=self.device)
 		self.mode[0] = 1.0
+		self.etol = 1e-14
 
 	#the sample method is used for REINFORCE
 	def sample(self, shape = torch.Size()):
@@ -199,6 +200,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 
 	#the rsample method is needed for pathwise derivative
 	def rsample(self, shape = torch.Size()) -> torch.Tensor:
+		shape = shape if isinstance(shape, torch.Size) else torch.Size([shape])
 		pass
 
 	def _accept_reject_w(self, shape) -> torch.Tensor:
@@ -212,22 +214,37 @@ class vonMisesFisher(torch.distributions.Distribution):
 		# subtraction will broadcast to (batch_size, self.dim)
 		pass
 		
-	def _sample_beta(self) -> float:
+	def _sample_beta(self, shape) -> torch.Tensor:
 		# Sample eps ~ Beta(1/2(m-1), 1/2(m-1))
-		m = self.dim
+
+		alpha = torch.Tensor((self.m - 1)/2, dtype=self.float64, device=self.device)
+		beta = torch.Tensor((self.m - 1)/2, dtype=self.float64, device=self.device)
+
+		eps = torch.distributions.Beta(alpha, beta).sample(shape).type(self.dtype)
+		
 		return eps
 
-	def _sample_uniform(self):
+	def _sample_uniform(self, shape) -> torch.Tensor:
 		#sample u ~ U[0,1]
+
+		u = torch.distributions.Uniform(
+			torch.Tensor(0, dtype=self.dtype, device=self.device),
+			torch.Tensor(1, dtype=self.dtype, device=self.device),
+			).sample(shape)
 
 		return u
 
-	def _sample_v(self):
-		#sample a point uniformly on the unit sphere.
+	def _sample_v(self, shape) -> torch.Tensor:
+		#sample a point uniformly on the unit sphere S^{m - 2}.
 		v = torch.distributions.Normal(
 			torch.Tensor(0, dtype=self.dtype, device=self.device), 
-			torch.Tensor(1, dtype=self.dtype, device=self.device)
-			).sample() #batch_size, 
+			torch.Tensor(1, dtype=self.dtype, device=self.device),
+			).sample(
+			#add n_samples to batch,dim
+			shape + torch.Size(self.mean.shape)
+			).transpose(0, -1)[1:].transpose(0,-1)
+			 #batch_size,
 
+		v = v/v.norm(dim=-1, keepdim=True)
 
 		return v
