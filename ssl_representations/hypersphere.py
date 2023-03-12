@@ -7,6 +7,8 @@ from projector import Projector
 
 import timm
 
+from typing import Tuple
+
 
 class MCInfoNCE(nn.Module):
 	r"""
@@ -207,38 +209,42 @@ class vonMisesFisher(torch.distributions.Distribution):
 		# k will be batch_size, 1
 		pass
 
-	def _householder(self, z: torch.Tensor) -> torch.Tensor:
-		# constructs the householder transform matrix U = I - 2* u @ u^T
-		# mode will be (self.dim),
-		# mean will be (batch_size, self.dim)
-		# subtraction will broadcast to (batch_size, self.dim)
+	def _while_w(self) -> Tuple[torch.Tensor, torch.Tensor]
 		pass
+
+	def _householder(self, z: torch.Tensor) -> torch.Tensor:
+		# performs the householder transform on z
+		# shape tested
+		u = self.mode - self.mean
+		u_prime = u / u.norm(dim=-1, keepdim = True).clamp_min(self.etol)
+		mu = z - 2 * (z * u_prime).sum(-1, keepdim=True) * u_prime 
 		
 	def _sample_beta(self, shape) -> torch.Tensor:
 		# Sample eps ~ Beta(1/2(m-1), 1/2(m-1))
 
-		alpha = torch.Tensor((self.m - 1)/2, dtype=self.float64, device=self.device)
-		beta = torch.Tensor((self.m - 1)/2, dtype=self.float64, device=self.device)
-
+		#decoupling constants
+		alpha = torch.tensor((self.m - 1)/2, dtype=self.float64, device=self.device)
+		beta = torch.tensor((self.m - 1)/2, dtype=self.float64, device=self.device)
 		eps = torch.distributions.Beta(alpha, beta).sample(shape).type(self.dtype)
 		
 		return eps
 
 	def _sample_uniform(self, shape) -> torch.Tensor:
 		#sample u ~ U[0,1]
-
+		#shape tested
 		u = torch.distributions.Uniform(
-			torch.Tensor(0, dtype=self.dtype, device=self.device),
-			torch.Tensor(1, dtype=self.dtype, device=self.device),
+			torch.tensor(0 + self.etol, dtype=self.dtype, device=self.device),
+			torch.tensor(1 - self.etol, dtype=self.dtype, device=self.device),
 			).sample(shape)
 
 		return u
 
 	def _sample_v(self, shape) -> torch.Tensor:
 		#sample a point uniformly on the unit sphere S^{m - 2}.
+		#shape tested
 		v = torch.distributions.Normal(
-			torch.Tensor(0, dtype=self.dtype, device=self.device), 
-			torch.Tensor(1, dtype=self.dtype, device=self.device),
+			torch.tensor(0, dtype=self.dtype, device=self.device), 
+			torch.tensor(1, dtype=self.dtype, device=self.device),
 			).sample(
 			#add n_samples to batch,dim
 			shape + torch.Size(self.mean.shape)
