@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
+import math
 
 from utils import off_diagonal, FullGatherLayer
 from projector import Projector
@@ -8,6 +9,7 @@ from projector import Projector
 import timm
 
 from typing import Tuple
+
 
 
 class MCInfoNCE(nn.Module):
@@ -88,13 +90,13 @@ class MCInfoNCE(nn.Module):
 	loss: torch.Tensor
 		scalar loss value. 
 	"""
-	def __init__(self, dimension: int, batch_size: int, device: str):
+	def __init__(self, dim: int, batch_size: int, device: str):
 		super().__init__()
 
-		self.dimension = dimension
+		self.dim = dim
 		self.batch_size = batch_size
-		self.device
-		self.sampler = vonMisesFisher(dimension = self.dimension, batch_size = self.batch_size, device = self.device)
+		self.device = device
+		self.sampler = vonMisesFisher(dimension = self.dim, batch_size = self.batch_size, device = self.device)
 
 	def forward(self, z1: torch.Tensor, z2: torch.Tensor) -> torch.Tensor:
 
@@ -175,7 +177,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 	support = torch.distributions.constraints.real
 	has_rsample = True 
 
-	def __init__(self, mean: torch.Tensor, conc: torch.Tensor):
+	def __init__(self, mean: torch.Tensor, conc: torch.Tensor, k: int = 1):
 		super().__init__()
 
 		#distribution params
@@ -194,6 +196,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 		self.mode = torch.zeros(self.dim, device=self.device)
 		self.mode[0] = 1.0
 		self.etol = 1e-14
+		self.k = k
 
 	#the sample method is used for REINFORCE
 	def sample(self, sample_shape = torch.Size()):
@@ -202,15 +205,100 @@ class vonMisesFisher(torch.distributions.Distribution):
 
 	#the rsample method is needed for pathwise derivative
 	def rsample(self, sample_shape = torch.Size()) -> torch.Tensor:
+
+		#safeguard
 		sample_shape = sample_shape if isinstance(sample_shape, torch.Size) else torch.Size([sample_shape])
+
+
+		# sample w 
+		# sample v
+		# concat w and v appropriately
+		# perform householder
+		# return sample
 		pass
 
-	def _accept_reject_w(self, shape) -> torch.Tensor:
-		# k will be batch_size, 1
-		pass
+	def _sample_w(self, shape) -> torch.Tensor:
+		# Need to review logic
+		quad = torch.sqrt( (4 * self.conc**2) + (self.dim - 1)**2)
+		
+		b_true = (-2 * self.conc + quad) / (self.dim - 1)
+		b_approx = (self.dim - 1) / (4 * self.conc)
 
-	def _while_w(self) -> Tuple[torch.Tensor, torch.Tensor]
-		pass
+		mix = torch.min(
+				torch.max(torch.tensor([0.0], dtype=self.dtype, device=self.device, self.scale = -10)
+					),
+				torch.tensor([1.0], dtype=self.dtype, device=self.device)
+			)
+
+		b = b_approx * mix + b_true * (1 - mix)
+
+		a = (self.dim - 1 + 2 * self.conc + quad) / 4
+		d = (4 * a * b) / (1 + b) - (self.dim - 1) * math.log(self.dim - 1)
+
+		self.b = b
+		self.eps, self.w = self._while_w(b, a, d, shape, self.k)
+
+		return self.w
+
+	@staticmethod
+	def first_nonzero(x, dim, invalid_val = -1):
+		#Need to review logic
+		mask = x > 0
+		idx = torch.where(
+			mask.any(dim=dim),
+			mask.float().max(dim=1)[1].squeeze(),
+			torch.tensor(invalud_val, device=x.device)
+
+			)
+
+		return idx
+		
+
+	def _while_w(self, b, a, d, shape, k=20) -> Tuple[torch.Tensor, torch.Tensor]
+		#Need to review all this logic
+		is_inf = self.conc == float("inf")
+		b, a, d, is_inf = [
+			e.repeat(*shape, *([1] * len(self.scale.shape))).reshape(-1,1)
+			for e in (b, a, d, is_inf)
+		]
+
+		w, e, bool_mask = (
+			torch.zeros_like(b, device=self.device),
+			torch.zeros_like(b, device=self.device),
+			(torch.ones_like(b, device=self.device) == 1)
+		)
+
+		sample_shape = torch.Size([b.shape[0], k])
+		shape = shape + torch.Size(self.scale.shape)
+
+		while bool_mask.sum() != 0:
+			eps = _sample_beta(sample_shape)
+			u = _sample_uniform(sample_shape)
+
+			w_tmp = (1 - (1 + b) * eps) / (1 - (1 - b) * eps)
+			t = (2 * a * b) / (1 - (1 - b) * eps)
+
+			accept = ((self.dim - 1.0) * t.log() - t + d) > torch.log(u)
+
+			w_tmp[is_inf] = 1
+			accept[is_inf] = True
+
+			accept_idx = self.first_nonzero(accept, dim=-1, invalid_val=-1).unsqueeze(1)
+			accept_idx_clamped = accept_idx.clamp(0)
+
+			w_tmp = w_tmp.gather(1, accept_idx_clamped.view(-1,1))
+			eps = eps.gather(1, accept_idx_clamped.view(-1,1))
+
+			reject = accept_idx < 0
+			accept = ~reject
+
+			w[bool_mask * accept] = w_tmp[bool_mask * accept]
+			e[bool_mask * accept] = eps[bool_mask * accept]
+
+			bool_mask[bool_mask * accept] = reject[bool_mask * accept]
+
+		return e.reshape(shape), w.reshape(shape)
+
 
 	def _householder(self, z: torch.Tensor) -> torch.Tensor:
 		# performs the householder transform on z
