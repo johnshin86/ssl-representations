@@ -199,15 +199,15 @@ class vonMisesFisher(torch.distributions.Distribution):
 		self.k = k
 
 	#the sample method is used for REINFORCE
-	def sample(self, sample_shape = torch.Size()):
+	def sample(self, shape = torch.Size()):
 		with torch.no_grad():
-			return self.rsample(sample_shape)
+			return self.rsample(shape)
 
 	#the rsample method is needed for pathwise derivative
-	def rsample(self, sample_shape = torch.Size()) -> torch.Tensor:
+	def rsample(self, shape = torch.Size()) -> torch.Tensor:
 
 		#safeguard
-		sample_shape = sample_shape if isinstance(sample_shape, torch.Size) else torch.Size([sample_shape])
+		shape = shape if isinstance(shape, torch.Size) else torch.Size([shape])
 
 
 		# sample w 
