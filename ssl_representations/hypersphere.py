@@ -266,7 +266,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 		return idx
 		
 
-	def _while_w(self, b, a, d, shape, k=20) -> Tuple[torch.Tensor, torch.Tensor]
+	def _while_w(self, b, a, d, shape, k=20) -> Tuple[torch.Tensor, torch.Tensor]:
 		is_inf = self.conc == float("inf")
 
 		# Instead of sampling (# of samples), we sample (# of samples) * k 
