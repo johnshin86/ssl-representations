@@ -231,7 +231,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 
 		# this is a "linear" heaviside which linearly transitions from 0 to 1 in between 10 to 11
 		mix = torch.min(
-				torch.max(torch.tensor([0.0], dtype=self.dtype, device=self.device, self.scale = -10)
+				torch.max(torch.tensor([0.0], dtype=self.dtype, device=self.device, self.scale - 10)
 					),
 				torch.tensor([1.0], dtype=self.dtype, device=self.device)
 			)
