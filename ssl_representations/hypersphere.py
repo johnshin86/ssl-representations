@@ -205,31 +205,39 @@ class vonMisesFisher(torch.distributions.Distribution):
 
 	#the rsample method is needed for pathwise derivative
 	def rsample(self, shape = torch.Size()) -> torch.Tensor:
-
-		#safeguard
 		shape = shape if isinstance(shape, torch.Size) else torch.Size([shape])
 
+		w = self._sample_w(shape = shape)
+		v = self._sample_v(shape = shape)
 
-		# sample w 
-		# sample v
-		# concat w and v appropriately
-		# perform householder
-		# return sample
-		pass
+		w_cos = torch.sqrt(torch.clamp(1 - w**2), self.etol)
+		x = torch.cat((w, w_cos*v), -1)
+		z = self._householder(x)
+		z = z.type(self.dtype)
+
+		if torch.any(torch.isnan(z)):
+			return self.rsample(shape)
+		else:
+			return z
 
 	def _sample_w(self, shape) -> torch.Tensor:
-		# Need to review logic
 		quad = torch.sqrt( (4 * self.conc**2) + (self.dim - 1)**2)
 		
+		#the true b
 		b_true = (-2 * self.conc + quad) / (self.dim - 1)
+
+		# k = inf expansion of b(k)
 		b_approx = (self.dim - 1) / (4 * self.conc)
 
+		# this is a "linear" heaviside which linearly transitions from 0 to 1 in between 10 to 11
 		mix = torch.min(
 				torch.max(torch.tensor([0.0], dtype=self.dtype, device=self.device, self.scale = -10)
 					),
 				torch.tensor([1.0], dtype=self.dtype, device=self.device)
 			)
 
+		# when k > 11, use the k=inf expansion. when k < 10 is small, use the true b.
+		# when 10 < k < 11, use a linear mix.
 		b = b_approx * mix + b_true * (1 - mix)
 
 		a = (self.dim - 1 + 2 * self.conc + quad) / 4
@@ -242,12 +250,16 @@ class vonMisesFisher(torch.distributions.Distribution):
 
 	@staticmethod
 	def first_nonzero(x, dim, invalid_val = -1):
-		#Need to review logic
+		# check operations with dummy tensors
+		# mask nonpositive entries
 		mask = x > 0
 		idx = torch.where(
+			# check if any entry is true
 			mask.any(dim=dim),
+			# return index of max, max will be first non-zero since all non-zeros are ones.
 			mask.float().max(dim=1)[1].squeeze(),
-			torch.tensor(invalud_val, device=x.device)
+			#otherwise return the index for having not found it, which is -1
+			torch.tensor(invalid_val, device=x.device)
 
 			)
 
@@ -255,47 +267,71 @@ class vonMisesFisher(torch.distributions.Distribution):
 		
 
 	def _while_w(self, b, a, d, shape, k=20) -> Tuple[torch.Tensor, torch.Tensor]
-		#Need to review all this logic
 		is_inf = self.conc == float("inf")
+
+		# Instead of sampling (# of samples), we sample (# of samples) * k 
+		# Having k for the i'th sample allows us to have additional samples in case of failure
+
+		# for each constant, repeat it's value (# of samples) * conc.shape 
+
+		# b.shape is the same shape as conc (batch_size, 1)
 		b, a, d, is_inf = [
-			e.repeat(*shape, *([1] * len(self.scale.shape))).reshape(-1,1)
+			e.repeat(*shape, *([1] * len(self.conc.shape))).reshape(-1,1)
 			for e in (b, a, d, is_inf)
 		]
 
+		# Init tensors for w, e, and a mask in the same shape
 		w, e, bool_mask = (
 			torch.zeros_like(b, device=self.device),
 			torch.zeros_like(b, device=self.device),
 			(torch.ones_like(b, device=self.device) == 1)
 		)
 
+		# sample_shape is (# of samples), k
+		# shape is (# of samples), conc.shape 
 		sample_shape = torch.Size([b.shape[0], k])
-		shape = shape + torch.Size(self.scale.shape)
+		shape = shape + torch.Size(self.conc.shape)
 
+		# while any bool_mask entry is nonzero
 		while bool_mask.sum() != 0:
+
+			#sample eps and u (# of samples, k)
 			eps = _sample_beta(sample_shape)
 			u = _sample_uniform(sample_shape)
 
+			#compute w_tmp and t for comparison, we will only copy over to w if it's an accept
+			#they will be of size (# of samples, k)
 			w_tmp = (1 - (1 + b) * eps) / (1 - (1 - b) * eps)
 			t = (2 * a * b) / (1 - (1 - b) * eps)
 
 			accept = ((self.dim - 1.0) * t.log() - t + d) > torch.log(u)
 
+			#return mean value of w (w=1) if it's infinite
 			w_tmp[is_inf] = 1
 			accept[is_inf] = True
 
+			#pick the first accept index along the k dimension, clamp invalids
 			accept_idx = self.first_nonzero(accept, dim=-1, invalid_val=-1).unsqueeze(1)
 			accept_idx_clamped = accept_idx.clamp(0)
 
+			#gather along axis dim=1 (k-axis) where accept indices were found
 			w_tmp = w_tmp.gather(1, accept_idx_clamped.view(-1,1))
 			eps = eps.gather(1, accept_idx_clamped.view(-1,1))
 
+			# reject mask where one finds invalid_index = -1
+			# accept mask is negation of that
 			reject = accept_idx < 0
 			accept = ~reject
 
+			#copy over the accept entries to w and e over the remaining bool_mask
 			w[bool_mask * accept] = w_tmp[bool_mask * accept]
 			e[bool_mask * accept] = eps[bool_mask * accept]
 
+			# turn off bool mask along accepted indices
 			bool_mask[bool_mask * accept] = reject[bool_mask * accept]
+
+			#continue until bool mask is all zeros
+			#one inefficiency with this is that it samples (# of samples), k every time. 
 
 		return e.reshape(shape), w.reshape(shape)
 
