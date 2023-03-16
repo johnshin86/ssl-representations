@@ -3,14 +3,12 @@ from torch import nn
 import torch.nn.functional as F
 import math
 
-from .utils import off_diagonal, FullGatherLayer
-from .projector import Projector
+from utils import off_diagonal, FullGatherLayer
+from projector import Projector
 
 import timm
 
 from typing import Tuple
-
-
 
 class MCInfoNCE(nn.Module):
 	r"""
@@ -79,10 +77,10 @@ class MCInfoNCE(nn.Module):
 
 	Parameters
 	----------
-	z1: torch.Tensor
+	y1: torch.Tensor
 		Batch of intermediate representations which have been randomly augmented at the input level.
 
-	z2: torch.Tensor
+	y2: torch.Tensor
 		Second batch of intermediate representations which have been randomly augmented at the input level. 
 
 	Returns
@@ -90,19 +88,79 @@ class MCInfoNCE(nn.Module):
 	loss: torch.Tensor
 		scalar loss value. 
 	"""
-	def __init__(self, kappa_init: int = 20, n_samples: int = 16):
+	def __init__(self, n_samples: int = 20, k: int = 20):
 		super().__init__()
+		self.args = args
+		
+		#init model
+		if "resnet" in args.arch:
+			model = timm.create_model(args.arch, zero_init_last=True)
+		else:
+			model = timm.create_model(args.arch)
 
+		#backbone and projector settings
+		self.rep_dim = model.fc.in_features
+		model.fc = nn.Identity()
+		self.backbone = model
+		self.projector = Projector(args, self.rep_dim)
+		self.criterion = nn.CrossEntropyLoss()
+
+		#loss settings
+		self.sim_matrix_n = args.n_views * args.batch_size
 		self.n_samples = n_samples
-		self.device = None # how to inherit the device from a local tensor?
-		#note this kappa is different from the one used for vMF
-		self.kappa = torch.nn.Parameter(torch.ones(1, device=self.device) * kappa_init, requires_grad = True)
+		self.k = k
+		assert self.args.n_views == 2, "Currently, only 2 views are supported for MCInfoNCE loss."
 
-	def forward(self, z1: torch.Tensor, z2: torch.Tensor) -> torch.Tensor:
+	def forward(self, y1: torch.Tensor, y2: torch.Tensor) -> torch.Tensor:
 
-		# draw vMF samples for z1 and z2, and compute SimCLR loss. 
-		# break off mean and k from z1 and z2.
-		pass
+		u1 = self.projector(self.backbone(y1))
+		u2 = self.projector(self.backbone(y2))
+
+		#Collect reps from all GPUs
+		u1 = torch.cat(FullGatherLayer.apply(u1), dim=0)
+		u2 = torch.cat(FullGatherLayer.apply(u2), dim=0)
+
+		u1 = u1[:,:-1]
+		u2 = u2[:,:-1]
+
+		kappa1 = torch.nn.ReLU(u1[:,-1]) # batch_size
+		kappa2 = torch.nn.ReLU(u2[:,-1]) # batch_size
+		
+		kappa = torch.concat([kappa1, kappa2], dim=0) # 2 * batch_size
+
+		# u1, u2 should be args.batch_size == per_device_batch_size * args.world_size
+		# i.e. args.batch_size is the total across GPUs
+
+		u1 = F.normalize(u1, dim=1)
+		u2 = F.normalize(u2, dim=1)
+		u = torch.concat([u1, u2], dim=0)
+
+		vMF = vonMisesFisher(u, kappa, k = 20)
+		z = vMF.rsample(shape=torch.Size([self.n_samples])) # n_samples, 2 * batch_size, embedding_dim
+		assert len(z.shape) == 3, "The length of the shape of z here should be 3."
+		z = torch.mean(z, dim=0) # sum over MC samples
+		
+		similarity_matrix = torch.matmul(z, z.T)
+
+		# create matrix where off-diagonals are all true
+		mask = ~torch.eye(self.sim_matrix_n, device=self.args.device).bool()
+		# select off-diagonals, reshape
+		neg = similarity_matrix.masked_select(mask).view(self.sim_matrix_n, -1)
+
+		#this can be done cleaner
+		# pos = torch.sum(z[:batch_size, ] * z[batch_size:, ], dim=-1)
+		# pos = torch.cat([pos, pos], dim=0)
+		pos = similarity_matrix[:batch_size, batch_size:].diag()
+		pos = torch.cat([pos, pos], dim = 0)
+
+		logits = torch.cat([pos.unsqueeze(-1), neg], dim=1)
+		labels = torch.zeros(logits.shape[0], dtype=torch.long).to(self.args.device)
+		logits = logits / self.args.temp
+
+		loss = self.criterion(logits, labels)
+
+		return loss
+
 
 class vonMisesFisher(torch.distributions.Distribution):
 	r"""Allows for the sampling from a von Mises Fisher distribution.
