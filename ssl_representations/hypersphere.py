@@ -3,8 +3,8 @@ from torch import nn
 import torch.nn.functional as F
 import math
 
-from utils import off_diagonal, FullGatherLayer
-from projector import Projector
+from .utils import off_diagonal, FullGatherLayer
+from .projector import Projector
 
 import timm
 
@@ -90,13 +90,13 @@ class MCInfoNCE(nn.Module):
 	loss: torch.Tensor
 		scalar loss value. 
 	"""
-	def __init__(self, dim: int, batch_size: int, device: str):
+	def __init__(self, kappa_init: int = 20, n_samples: int = 16):
 		super().__init__()
 
-		self.dim = dim
-		self.batch_size = batch_size
-		self.device = device
-		self.sampler = vonMisesFisher(dimension = self.dim, batch_size = self.batch_size, device = self.device)
+		self.n_samples = n_samples
+		self.device = None # how to inherit the device from a local tensor?
+		#note this kappa is different from the one used for vMF
+		self.kappa = torch.nn.Parameter(torch.ones(1, device=self.device) * kappa_init, requires_grad = True)
 
 	def forward(self, z1: torch.Tensor, z2: torch.Tensor) -> torch.Tensor:
 
@@ -177,8 +177,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 	support = torch.distributions.constraints.real
 	has_rsample = True 
 
-	def __init__(self, mean: torch.Tensor, conc: torch.Tensor, k: int = 1):
-		super().__init__()
+	def __init__(self, mean: torch.Tensor, conc: torch.Tensor, validate_args = None, k: int = 1):
 
 		#distribution params
 		self.mean = mean
@@ -197,6 +196,8 @@ class vonMisesFisher(torch.distributions.Distribution):
 		self.mode[0] = 1.0
 		self.etol = 1e-14
 		self.k = k
+
+		super().__init__(self.mean.size(), validate_args=validate_args)
 
 	#the sample method is used for REINFORCE
 	def sample(self, shape = torch.Size()):
