@@ -337,6 +337,8 @@ class vonMisesFisher(torch.distributions.Distribution):
 			#continue until bool mask is all zeros
 			#one inefficiency with this is that it samples (# of samples), k every time. 
 
+			#TODO: refactor so sample_shape is not sampled when only the remaining bool_mask needs to be filled. 
+
 		return e.reshape(shape), w.reshape(shape)
 
 
