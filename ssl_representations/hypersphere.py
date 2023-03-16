@@ -183,6 +183,8 @@ class vonMisesFisher(torch.distributions.Distribution):
 		self.loc = loc
 		self.scale = scale
 
+		print("self.scale.shape", self.scale.shape)
+
 		#tensor settings
 		self.dtype = loc.dtype
 		self.device = loc.device
@@ -307,9 +309,10 @@ class vonMisesFisher(torch.distributions.Distribution):
 
 			accept = ((self.dim - 1.0) * t.log() - t + d) > torch.log(u)
 
-			#return mean value of w (w=1) if it's infinite
-			w_tmp[is_inf] = 1
-			accept[is_inf] = True
+			#return mean value of w (w=1) if k=inf infinite
+			#w_tmp is actually larger than b due to the k factor
+			w_tmp[is_inf.squeeze(),] = torch.ones(k)
+			accept[is_inf.squeeze(),] = torch.ones(k).bool()
 
 			#pick the first accept index along the k dimension, clamp invalids
 			accept_idx = self.first_nonzero(accept, dim=-1, invalid_val=-1).unsqueeze(1)
