@@ -116,7 +116,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 	
 	Algorithm 1
 	-----------
-	Input: dimension m, mean \mu, concentration k
+	Input: dimension m, loc \mu, scale k
 	sample v ~ U(S^{m-2})
 	sample w ~ g(w|k, m) \propto exp(wk)(1 - w^2)^{(m-3)/2}
 	accept-reject procedure (Algorithm 2)
@@ -142,7 +142,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 
 	Algorithm 2
 	-----------
-	Input: dimension m, concentration k
+	Input: dimension m, scale k
 	Initialize values:
 	b = (-2k + \sqrt{4k^2 + (m-1)^2})/2
 	a = ((m-1) + 2k + \sqrt{4k^2 + (m-1)^2})/4
@@ -160,7 +160,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 
 	Algorithm 3
 	-----------
-	Input: mean \mu, modal vector e_1
+	Input: loc \mu, modal vector e_1
 	u' = e_1 - \mu
 	u = u' / ||u'||_2
 	U =  I - 2 uu^T
@@ -169,8 +169,8 @@ class vonMisesFisher(torch.distributions.Distribution):
 
 	arg_constraints = {
 
-		"mean": torch.distributions.constraints.real,
-		"conc": torch.distributions.constraints.positive
+		"loc": torch.distributions.constraints.real,
+		"scale": torch.distributions.constraints.positive
 
 	}
 
@@ -184,8 +184,8 @@ class vonMisesFisher(torch.distributions.Distribution):
 		self.scale = scale
 
 		#tensor settings
-		self.dtype = mean.dtype
-		self.device = mean.device
+		self.dtype = loc.dtype
+		self.device = loc.device
 
 		#dim settings
 		self.dim = loc.shape[-1] #batch_size, dim
