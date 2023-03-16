@@ -177,27 +177,27 @@ class vonMisesFisher(torch.distributions.Distribution):
 	support = torch.distributions.constraints.real
 	has_rsample = True 
 
-	def __init__(self, mean: torch.Tensor, conc: torch.Tensor, validate_args = None, k: int = 1):
+	def __init__(self, loc: torch.Tensor, scale: torch.Tensor, validate_args = None, k: int = 1):
 
 		#distribution params
-		self.mean = mean
-		self.conc = conc
+		self.loc = loc
+		self.scale = scale
 
 		#tensor settings
 		self.dtype = mean.dtype
 		self.device = mean.device
 
 		#dim settings
-		self.dim = mean.shape[-1] #batch_size, dim
-		self.batch_size = mean.shape[0]
+		self.dim = loc.shape[-1] #batch_size, dim
+		self.batch_size = loc.shape[0]
 
-		#algorithm tmp tensors
-		self.mode = torch.zeros(self.dim, device=self.device)
-		self.mode[0] = 1.0
+		#algorithm settings
+		self.e1 = torch.zeros(self.dim, device=self.device)
+		self.e1[0] = 1.0
 		self.etol = 1e-14
 		self.k = k
 
-		super().__init__(self.mean.size(), validate_args=validate_args)
+		super().__init__(self.loc.size(), validate_args=validate_args)
 
 	#the sample method is used for REINFORCE
 	def sample(self, shape = torch.Size()):
@@ -222,13 +222,13 @@ class vonMisesFisher(torch.distributions.Distribution):
 			return z
 
 	def _sample_w(self, shape) -> torch.Tensor:
-		quad = torch.sqrt( (4 * self.conc**2) + (self.dim - 1)**2)
+		quad = torch.sqrt( (4 * self.scale**2) + (self.dim - 1)**2)
 		
 		#the true b
-		b_true = (-2 * self.conc + quad) / (self.dim - 1)
+		b_true = (-2 * self.scale + quad) / (self.dim - 1)
 
 		# k = inf expansion of b(k)
-		b_approx = (self.dim - 1) / (4 * self.conc)
+		b_approx = (self.dim - 1) / (4 * self.scale)
 
 		# this is a "linear" heaviside which linearly transitions from 0 to 1 in between 10 to 11
 		mix = torch.min(
@@ -241,7 +241,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 		# when 10 < k < 11, use a linear mix.
 		b = b_approx * mix + b_true * (1 - mix)
 
-		a = (self.dim - 1 + 2 * self.conc + quad) / 4
+		a = (self.dim - 1 + 2 * self.scale + quad) / 4
 		d = (4 * a * b) / (1 + b) - (self.dim - 1) * math.log(self.dim - 1)
 
 		self.b = b
@@ -268,7 +268,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 		
 
 	def _while_w(self, b, a, d, shape, k=20) -> Tuple[torch.Tensor, torch.Tensor]:
-		is_inf = self.conc == float("inf")
+		is_inf = self.scale == float("inf")
 
 		# Instead of sampling (# of samples), we sample (# of samples) * k 
 		# Having k for the i'th sample allows us to have additional samples in case of failure
@@ -277,7 +277,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 
 		# b.shape is the same shape as conc (batch_size, 1)
 		b, a, d, is_inf = [
-			e.repeat(*shape, *([1] * len(self.conc.shape))).reshape(-1,1)
+			e.repeat(*shape, *([1] * len(self.scale.shape))).reshape(-1,1)
 			for e in (b, a, d, is_inf)
 		]
 
@@ -291,7 +291,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 		# sample_shape is (# of samples), k
 		# shape is (# of samples), conc.shape 
 		sample_shape = torch.Size([b.shape[0], k])
-		shape = shape + torch.Size(self.conc.shape)
+		shape = shape + torch.Size(self.scale.shape)
 
 		# while any bool_mask entry is nonzero
 		while bool_mask.sum() != 0:
@@ -340,7 +340,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 	def _householder(self, z: torch.Tensor) -> torch.Tensor:
 		# performs the householder transform on z
 		# shape tested
-		u = self.mode - self.mean
+		u = self.e1 - self.loc
 		u_prime = u / u.norm(dim=-1, keepdim = True).clamp_min(self.etol)
 		mu = z - 2 * (z * u_prime).sum(-1, keepdim=True) * u_prime 
 		
@@ -372,7 +372,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 			torch.tensor(1, dtype=self.dtype, device=self.device),
 			).sample(
 			#add n_samples to batch,dim
-			shape + torch.Size(self.mean.shape)
+			shape + torch.Size(self.loc.shape)
 			).transpose(0, -1)[1:].transpose(0,-1)
 			 #batch_size,
 
