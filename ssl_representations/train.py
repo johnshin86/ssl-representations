@@ -21,6 +21,7 @@ from utils import exclude_bias_and_norm
 from vicreg import VICReg
 from barlow_twins import BarlowTwins
 from simclr import SimCLR
+from hypersphere import MCInfoNCE
 
 
 # This train.py file is modified from the vicreg training file at: https://github.com/facebookresearch/vicreg/blob/main/main_vicreg.py
@@ -136,6 +137,8 @@ def main(args):
         model = BarlowTwins(args).cuda(gpu)
     elif args.framework == "simclr":
         model = SimCLR(args).cuda(gpu)
+    elif args.framework == "hypersphere":
+        model = MCInfoNCE(args).cuda(gpu)
 
 
     model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
