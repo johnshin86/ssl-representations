@@ -213,7 +213,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 		w = self._sample_w(shape = shape)
 		v = self._sample_v(shape = shape)
 
-		w_cos = torch.sqrt(torch.clamp(1 - w**2), self.etol)
+		w_cos = torch.sqrt(torch.clamp(1 - w**2, self.etol))
 		x = torch.cat((w, w_cos*v), -1)
 		z = self._householder(x)
 		z = z.type(self.dtype)
