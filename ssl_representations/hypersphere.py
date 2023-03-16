@@ -348,8 +348,8 @@ class vonMisesFisher(torch.distributions.Distribution):
 		# Sample eps ~ Beta(1/2(m-1), 1/2(m-1))
 
 		#decoupling constants
-		alpha = torch.tensor((self.m - 1)/2, dtype=self.float64, device=self.device)
-		beta = torch.tensor((self.m - 1)/2, dtype=self.float64, device=self.device)
+		alpha = torch.tensor((self.dim - 1)/2, dtype=self.float64, device=self.device)
+		beta = torch.tensor((self.dim - 1)/2, dtype=self.float64, device=self.device)
 		eps = torch.distributions.Beta(alpha, beta).sample(shape).type(self.dtype)
 		
 		return eps
