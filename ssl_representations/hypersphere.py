@@ -214,7 +214,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 		v = self._sample_v(shape = shape)
 
 		w_cos = torch.sqrt(torch.clamp(1 - w**2, self.etol))
-		x = torch.cat((w, w_cos*v), -1)
+		x = torch.cat((w.unsqueeze(-1), w_cos.unsqueeze(-1)*v), -1)
 		z = self._householder(x)
 		z = z.type(self.dtype)
 
@@ -346,6 +346,7 @@ class vonMisesFisher(torch.distributions.Distribution):
 		u = self.e1 - self.loc
 		u_prime = u / u.norm(dim=-1, keepdim = True).clamp_min(self.etol)
 		mu = z - 2 * (z * u_prime).sum(-1, keepdim=True) * u_prime 
+		return mu
 		
 	def _sample_beta(self, shape) -> torch.Tensor:
 		# Sample eps ~ Beta(1/2(m-1), 1/2(m-1))
