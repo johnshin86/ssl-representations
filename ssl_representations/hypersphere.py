@@ -297,8 +297,8 @@ class vonMisesFisher(torch.distributions.Distribution):
 		while bool_mask.sum() != 0:
 
 			#sample eps and u (# of samples, k)
-			eps = _sample_beta(sample_shape)
-			u = _sample_uniform(sample_shape)
+			eps = self._sample_beta(sample_shape)
+			u = self._sample_uniform(sample_shape)
 
 			#compute w_tmp and t for comparison, we will only copy over to w if it's an accept
 			#they will be of size (# of samples, k)
