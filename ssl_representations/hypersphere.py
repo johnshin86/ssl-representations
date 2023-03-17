@@ -88,7 +88,7 @@ class MCInfoNCE(nn.Module):
 	loss: torch.Tensor
 		scalar loss value. 
 	"""
-	def __init__(self, n_samples: int = 20, k: int = 20):
+	def __init__(self, args, n_samples: int = 20, k: int = 20):
 		super().__init__()
 		self.args = args
 		
@@ -109,6 +109,9 @@ class MCInfoNCE(nn.Module):
 		self.sim_matrix_n = args.n_views * args.batch_size
 		self.n_samples = n_samples
 		self.k = k
+		self.etol = 1e-4
+		self.relu = torch.nn.ReLU()
+
 		assert self.args.n_views == 2, "Currently, only 2 views are supported for MCInfoNCE loss."
 
 	def forward(self, y1: torch.Tensor, y2: torch.Tensor) -> torch.Tensor:
@@ -123,8 +126,8 @@ class MCInfoNCE(nn.Module):
 		u1 = u1[:,:-1]
 		u2 = u2[:,:-1]
 
-		kappa1 = torch.nn.ReLU(u1[:,-1]) # batch_size
-		kappa2 = torch.nn.ReLU(u2[:,-1]) # batch_size
+		kappa1 = self.relu(u1[:,-1]) + self.etol #  batch_size
+		kappa2 = self.relu(u2[:,-1]) + self.etol # batch_size
 		
 		kappa = torch.concat([kappa1, kappa2], dim=0) # 2 * batch_size
 
@@ -135,7 +138,7 @@ class MCInfoNCE(nn.Module):
 		u2 = F.normalize(u2, dim=1)
 		u = torch.concat([u1, u2], dim=0)
 
-		vMF = vonMisesFisher(u, kappa, k = 20)
+		vMF = vonMisesFisher(loc = u, scale = kappa, k = 20)
 		z = vMF.rsample(shape=torch.Size([self.n_samples])) # n_samples, 2 * batch_size, embedding_dim
 		assert len(z.shape) == 3, "The length of the shape of z here should be 3."
 		z = torch.mean(z, dim=0) # sum over MC samples
@@ -148,10 +151,10 @@ class MCInfoNCE(nn.Module):
 		neg = similarity_matrix.masked_select(mask).view(self.sim_matrix_n, -1)
 
 		#this can be done cleaner
-		# pos = torch.sum(z[:batch_size, ] * z[batch_size:, ], dim=-1)
-		# pos = torch.cat([pos, pos], dim=0)
-		pos = similarity_matrix[:batch_size, batch_size:].diag()
-		pos = torch.cat([pos, pos], dim = 0)
+		pos = torch.sum(z[:self.args.batch_size, ] * z[self.args.batch_size:, ], dim=-1)
+		pos = torch.cat([pos, pos], dim=0)
+		# pos = similarity_matrix[:self.args.batch_size, self.args.batch_size:].diag()
+		# pos = torch.cat([pos, pos], dim = 0)
 
 		logits = torch.cat([pos.unsqueeze(-1), neg], dim=1)
 		labels = torch.zeros(logits.shape[0], dtype=torch.long).to(self.args.device)
@@ -240,8 +243,6 @@ class vonMisesFisher(torch.distributions.Distribution):
 		#distribution params
 		self.loc = loc
 		self.scale = scale
-
-		print("self.scale.shape", self.scale.shape)
 
 		#tensor settings
 		self.dtype = loc.dtype
@@ -369,8 +370,8 @@ class vonMisesFisher(torch.distributions.Distribution):
 
 			#return mean value of w (w=1) if k=inf infinite
 			#w_tmp is actually larger than b due to the k factor
-			w_tmp[is_inf.squeeze(),] = torch.ones(k)
-			accept[is_inf.squeeze(),] = torch.ones(k).bool()
+			w_tmp[is_inf.squeeze(),] = torch.ones(k, device=self.device)
+			accept[is_inf.squeeze(),] = torch.ones(k, device=self.device).bool()
 
 			#pick the first accept index along the k dimension, clamp invalids
 			accept_idx = self.first_nonzero(accept, dim=-1, invalid_val=-1).unsqueeze(1)
