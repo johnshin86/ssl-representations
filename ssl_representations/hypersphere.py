@@ -165,6 +165,9 @@ class MCInfoNCE(nn.Module):
 		return loss
 
 
+
+
+
 class vonMisesFisher(torch.distributions.Distribution):
 	r"""Allows for the sampling from a von Mises Fisher distribution.
 	The torch.distributions.Distribution class allows for the backpropagation
